@@ -1,0 +1,12 @@
+[project]
+name = "doc-parser-preprocessor"
+version = "0.0.1"
+description = "GenOS 문서 전처리기"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "pypdf>=6.0",
+    "pyyaml>=6.0",
+    "pymupdf>=1.26",
+]

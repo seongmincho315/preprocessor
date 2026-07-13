@@ -1,0 +1,23 @@
+max_page_split: 50
+
+# pdf 레이아웃 분석
+layout:
+  type: rule # rule | detr | dots_mocr
+  # layout model 마다 config이 다를거같은데
+  # config: /app/resource/<이름>.yaml 
+
+ocr:
+  type: paddle
+  # config: /app/resource/<이름>.yaml 
+
+
+ext:
+  pdf: pymupdf # pymupdf | pypdf
+  html: bs4 # bs4 | libreoffice 
+  docx: test
+  hwpx: test
+
+chunker:
+  type: smart_chunker # smart_chunker | hierarchical_chunker | hybrid_chunker
+  chunk_size: 1000
+  over_lap: 100
