@@ -6,9 +6,13 @@ from loader.base_loader import BaseLoader
 class Loader(BaseLoader):
     def _extract_pages(self, file_path: str):
         doc = fitz.open(file_path)
+        needs_image = getattr(self.layout, "NEEDS_IMAGE", False)
+        dpi = self.layout_config.get("image_dpi", 150)
         try:
             for page in doc:
-                yield self._extract_lines(page)
+                lines = self._extract_lines(page)
+                image = page.get_pixmap(dpi=dpi).tobytes("png") if needs_image else None
+                yield lines, image
         finally:
             doc.close()
 

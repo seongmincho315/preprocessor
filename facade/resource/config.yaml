@@ -2,9 +2,8 @@ max_page_split: 50
 
 # pdf 레이아웃 분석
 layout:
-  type: rule # rule | detr | dots_mocr
-  # layout model 마다 config이 다를거같은데
-  # config: /app/resource/<이름>.yaml 
+  type: detr # rule | detr | dots_mocr
+  # type이 rule이 아니면 resource/<type>.yaml을 읽어 아래 설정과 병합한다
 
 ocr:
   type: paddle

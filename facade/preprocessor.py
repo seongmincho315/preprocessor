@@ -1,4 +1,5 @@
 import importlib
+import shutil
 from pathlib import Path
 from typing import List
 
@@ -16,6 +17,15 @@ class DocumentProcessor:
 
         self.max_page_split = config["max_page_split"]
 
+        # layout.type이 rule이 아니면 resource/<type>.yaml(전략별 세부 설정)을 읽어 병합한다.
+        layout_config = dict(config.get("layout") or {})
+        layout_type = layout_config.get("type", "rule")
+        if layout_type != "rule":
+            strategy_path = CONFIG_PATH.parent / f"{layout_type}.yaml"
+            if strategy_path.exists():
+                with open(strategy_path, encoding="utf-8") as f:
+                    layout_config.update(yaml.safe_load(f) or {})
+
         # loader는 확장자별 loader.<ext>.<이름> 모듈의 Loader 클래스를 쓴다 (예: loader.pdf.pymupdf).
         # 없으면 converter.<이름>의 Loader로 대체한다 (예: libreoffice로 pdf 변환 후 로드).
         # 둘 다 없는 확장자/전략은 건너뛴다.
@@ -28,7 +38,7 @@ class DocumentProcessor:
                     loader_module = importlib.import_module(f"converter.{name}")
                 except ModuleNotFoundError:
                     continue
-            self.loader[ext] = loader_module.Loader(config.get("layout"))
+            self.loader[ext] = loader_module.Loader(layout_config)
 
         self.chunker = importlib.import_module(f"chunker.{config['chunker']['type']}").Chunker(
             chunk_size=config["chunker"]["chunk_size"],
@@ -65,6 +75,17 @@ class DocumentProcessor:
 
     async def __call__(self, request, file_path: str, **params):
         file_paths = self.file_handling(file_path)
-        items = self.load(file_paths)
-        chunks = self.chunking(items)
-        return self.build_metadata(chunks, file_path)
+        try:
+            items = self.load(file_paths)
+            chunks = self.chunking(items)
+            return self.build_metadata(chunks, file_path)
+        finally:
+            self._cleanup_split_files(file_path, file_paths)
+
+    @staticmethod
+    def _cleanup_split_files(file_path: str, file_paths: List[str]) -> None:
+        """file_handling이 분할했을 때만(원본과 다를 때만) 생성된 <파일이름>/*.pdf 디렉터리를 지운다."""
+        if file_paths == [file_path]:
+            return
+        split_dir = Path(file_paths[0]).parent
+        shutil.rmtree(split_dir, ignore_errors=True)

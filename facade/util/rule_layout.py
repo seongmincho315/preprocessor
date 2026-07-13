@@ -9,7 +9,9 @@ class Layout:
     def __init__(self, config: dict = None):
         self.config = config or {}
 
-    def __call__(self, lines: List[Tuple[str, Tuple[float, float, float, float], float]]) -> List[str]:
+    def __call__(
+        self, lines: List[Tuple[str, Tuple[float, float, float, float], float]], image: bytes = None
+    ) -> List[str]:
         """페이지의 (text, bbox, font_size) 줄 목록을 받아 줄마다 category를 반환한다."""
         body_size = self._most_common_font_size(lines)
         return [self._classify(font_size, body_size) for _, _, font_size in lines]

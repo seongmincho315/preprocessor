@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Optional, Tuple
 
-from util.layout import Layout
+from util.rule_layout import Layout
 
 
 class BaseLoader(ABC):
@@ -20,8 +20,8 @@ class BaseLoader(ABC):
 
     def __call__(self, file_path: str, *args, **kwds) -> List[dict]:
         items = []
-        for page_no, lines in enumerate(self._extract_pages(file_path), start=1):
-            categories = self.layout(lines)
+        for page_no, (lines, image) in enumerate(self._extract_pages(file_path), start=1):
+            categories = self.layout(lines, image=image)
             for (text, bbox, font_size), category in zip(lines, categories):
                 items.append(
                     {
@@ -33,11 +33,18 @@ class BaseLoader(ABC):
                 )
         return items
 
-    def get_layout(self) -> Layout:
-        # TODO: layout_config["type"]이 detr/dots_mocr 등이면 그에 맞는 Layout 구현으로 분기
+    def get_layout(self):
+        layout_type = self.layout_config.get("type", "rule")
+        if layout_type == "detr":
+            from util.detr_layout import DetrLayout
+
+            return DetrLayout(self.layout_config)
+        # TODO: dots_mocr이면 그에 맞는 Layout 구현으로 분기
         return Layout(self.layout_config)
 
     @abstractmethod
-    def _extract_pages(self, file_path: str) -> Iterable[List[Tuple[str, Tuple[float, float, float, float], float]]]:
-        """페이지 단위로 (text, bbox, font_size) 줄 목록을 순서대로 반환한다."""
+    def _extract_pages(
+        self, file_path: str
+    ) -> Iterable[Tuple[List[Tuple[str, Tuple[float, float, float, float], float]], Optional[bytes]]]:
+        """페이지 단위로 ((text, bbox, font_size) 줄 목록, 페이지 이미지 PNG bytes|None)을 순서대로 반환한다."""
         raise NotImplementedError

@@ -7,7 +7,7 @@ class Loader(BaseLoader):
     def _extract_pages(self, file_path: str):
         reader = PdfReader(file_path)
         for page in reader.pages:
-            yield self._extract_lines(page)
+            yield self._extract_lines(page), None
 
     @staticmethod
     def _extract_lines(page):
