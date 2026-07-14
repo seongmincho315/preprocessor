@@ -169,21 +169,7 @@ e_page}`` 청크 목록으로 바꾸는 컴포넌트다. ``smart_chunker``/``hie
 되지만, 여기서는 클래스와 조립을 한 곳에서 보여주기 위해 같은 코드
 블록에 뒀다.
 
-6. (선택) config.yaml로 등록해서 쓰고 싶다면
--------------------------------------------------
-
-조합을 코드에 고정하지 않고 :class:`preprocessor.DocumentProcessor` 처럼
-``resource/config.yaml`` 로 계속 갈아 끼우고 싶다면, ``chunker.type`` 값만
-바꾸면 된다(:doc:`facade_usage` 참고):
-
-.. code-block:: yaml
-
-   chunker:
-     type: my_chunker
-     chunk_size: 1000
-     over_lap: 100
-
-7. 테스트한다
+6. 테스트한다
 --------------
 
 ``tests/unit/test_chunkers.py`` 의 기존 테스트들처럼, 아이템 목록을 직접
@@ -204,9 +190,18 @@ e_page}`` 청크 목록으로 바꾸는 컴포넌트다. ``smart_chunker``/``hie
        chunks = Chunker(chunk_size=15, chunk_overlap=3)(ITEMS)
        assert len(chunks) > 1
 
+.. note::
+   위 5단계 예제는 조합을 코드에 고정하는 :doc:`custom_preprocessor` 방식이라
+   ``resource/config.yaml`` 을 읽지 않는다. ``config.yaml`` 로 계속 갈아
+   끼우는 :class:`preprocessor.DocumentProcessor` 를 쓰고 싶다면, 이
+   ``DocumentProcessor`` 서브클래스를 따로 만들 필요 없이 ``facade/chunker/my_chunker.py``
+   의 ``Chunker`` 클래스 이름만 그대로 두고 ``chunker.type: my_chunker`` 만
+   추가하면 된다 - 자세한 건 :doc:`facade_usage`.
+
 더 보기
 -------
 
 - 파이프라인 각 단계가 정확히 뭘 하는지는 :doc:`architecture`
 - 클래스/함수 시그니처는 :doc:`api`
 - 조합 자체를 코드에 고정하는 법은 :doc:`custom_preprocessor`
+- yaml로 조합을 바꾸는 법은 :doc:`facade_usage`
