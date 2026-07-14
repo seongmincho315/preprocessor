@@ -33,8 +33,8 @@
 필요 여부 판단/레이아웃 적용, 청커는 heading 렌더링/슬라이딩 윈도우 분할)을
 그대로 물려받는다.
 
-이 동적 로딩 대신 조합을 코드에 고정해두고 싶다면 :doc:`custom_preprocessor`\ 를,
-새 청킹 전략을 처음부터 만드는 법은 :doc:`custom_chunker`\ 를 참고.
+yaml만 고쳐서 기존 구현체를 조합하는 법은 :doc:`facade_usage`\ , 이 동적
+로딩 대신 조합을 코드에 고정해두고 싶다면 :doc:`custom_preprocessor`\ 를 참고.
 
 OCR이 호출되는 조건
 -------------------

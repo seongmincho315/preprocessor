@@ -17,8 +17,8 @@ ocr:
 ext:
   pdf: pymupdf # pymupdf | pypdf
   html: bs4 # bs4 | libreoffice 
+  hwpx: rhwp # rhwp | libreoffice
   docx: test
-  hwpx: test
 
 chunker:
   type: smart_chunker # smart_chunker | hierarchical_chunker | hybrid_chunker

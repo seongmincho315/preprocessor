@@ -17,8 +17,20 @@
 - 확장자 별로 지정된 로더로 파일 로드하고 파싱
 - pdf 외의 파일의 경우 pdf로 컨버팅이 필요할 수도 있음.
 
+### preprocessing: 룰 기반 전처리(전처리기의 전처리....)
+- 띄어쓰기(TODO)
+
+### pre-Enrichment: 외부 모델 기반 청크 내용 보강
+
 ### 청킹
 - 파싱된 텍스트를 청킹
+
+### postprocessing
+
+### post-Enrichment(외부 모델을 이용하여 청크 내용 보강)
+- image_description
+- table_refiner
+- etc..
 
 ### Metadata
 - Genos 플랫폼에서 사용가능하게 메타데이터 할당
