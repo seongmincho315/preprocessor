@@ -1,6 +1,7 @@
 """로컬 통합 테스트: 실제 detr(:30881)/paddle(:30880) 파드에 붙여
-DocumentProcessor 전체 파이프라인(파일분할 -> 로드 -> 청킹 -> 메타데이터)을 검증한다.
-로컬에 두 파드가 떠 있지 않으면 자동으로 skip된다."""
+DocumentProcessor 전체 파이프라인(파일분할 -> 로드 -> 전처리/보강 -> 청킹 ->
+후처리/보강 -> 메타데이터)을 검증한다. 로컬에 두 파드가 떠 있지 않으면
+자동으로 skip된다."""
 
 import pytest
 
@@ -22,9 +23,13 @@ def test_pdf_pipeline_end_to_end(document_processor, sample_pdf):
         assert items, "아이템이 하나도 추출되지 않음"
         assert all(EXPECTED_ITEM_KEYS <= item.keys() for item in items)
 
+        items = dp.pre_enrich(dp.preprocess(items))
+
         chunks = dp.chunking(items)
         assert chunks, "청크가 하나도 생성되지 않음"
         assert all(EXPECTED_CHUNK_KEYS <= chunk.keys() for chunk in chunks)
+
+        chunks = dp.post_enrich(dp.postprocess(chunks))
 
         metadata = dp.build_metadata(chunks, str(sample_pdf))
         assert len(metadata) == len(chunks)

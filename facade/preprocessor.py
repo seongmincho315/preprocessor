@@ -2,8 +2,8 @@
 
 ``resource/config.yaml`` 설정에 따라 확장자별 로더, 레이아웃/OCR 전략, 청커,
 메타데이터 빌더를 동적으로 구성하고, :class:`base_processor.BaseProcessor` 가
-정의하는 파일 핸들링 -> 로드 -> 청킹 -> 메타데이터 파이프라인을
-:class:`DocumentProcessor` 하나로 노출한다.
+정의하는 파일 핸들링 -> 로드 -> 전처리/보강 -> 청킹 -> 후처리/보강 -> 메타데이터
+파이프라인을 :class:`DocumentProcessor` 하나로 노출한다.
 """
 
 import importlib
@@ -18,12 +18,17 @@ CONFIG_PATH = Path(__file__).parent / "resource" / "config.yaml"
 class DocumentProcessor(BaseProcessor):
     """``config.yaml`` 에 설정된 조합으로 문서 하나를 파싱해 GenOS 벡터 메타데이터로 만든다.
 
-    파이프라인 4단계(:meth:`~base_processor.BaseProcessor.file_handling`,
+    파이프라인 8단계(:meth:`~base_processor.BaseProcessor.file_handling`,
     :meth:`~base_processor.BaseProcessor.load`,
+    :meth:`~base_processor.BaseProcessor.preprocess`,
+    :meth:`~base_processor.BaseProcessor.pre_enrich`,
     :meth:`~base_processor.BaseProcessor.chunking`,
-    :meth:`~base_processor.BaseProcessor.build_metadata`)는
-    :class:`base_processor.BaseProcessor` 로부터 그대로 물려받고, 이 클래스는
-    ``config.yaml`` 을 읽어 로더/청커/메타데이터 빌더를 구성하는 역할만 한다.
+    :meth:`~base_processor.BaseProcessor.postprocess`,
+    :meth:`~base_processor.BaseProcessor.post_enrich`,
+    :meth:`~base_processor.BaseProcessor.build_metadata`, 그리고 ``__call__``
+    자체)는 :class:`base_processor.BaseProcessor` 로부터 그대로 물려받고, 이
+    클래스는 ``config.yaml`` 을 읽어 로더/청커/메타데이터 빌더를 구성하고
+    GenOS ``/run`` 의 async 시그니처만 얹는 역할을 한다.
 
     Attributes:
         max_page_split (int): 이 페이지 수를 넘으면 파일을 분할한다.
@@ -77,13 +82,10 @@ class DocumentProcessor(BaseProcessor):
         )
         self.metadata_builder = importlib.import_module("metadata.genos").GenosMetadata()
 
-    def preprocess(self):
-        # 띄어쓰기 보정
-        # 딕셔너리 기능도 필요하겠당
-        pass
-
     async def __call__(self, request, file_path: str, **params):
-        """전체 파이프라인(파일 분할 -> 로드 -> 청킹 -> 메타데이터)을 실행한다.
+        """GenOS ``/run`` 이 요구하는 async 시그니처(``request``/``**params`` 포함)만
+        감싸고, 실제 흐름은 :meth:`~base_processor.BaseProcessor.__call__` 이
+        그대로 수행한다.
 
         Args:
             request: GenOS ``/run`` 요청 객체(현재 구현에서는 사용하지 않음).
@@ -93,10 +95,5 @@ class DocumentProcessor(BaseProcessor):
         Returns:
             :meth:`~base_processor.BaseProcessor.build_metadata` 가 반환한 벡터 dict 목록.
         """
-        file_paths = self.file_handling(file_path)
-        try:
-            items = self.load(file_paths)
-            chunks = self.chunking(items)
-            return self.build_metadata(chunks, file_path)
-        finally:
-            self._cleanup_split_files(file_path, file_paths)
+        # file_handling -> load -> preprocess -> pre_enrich -> chunking -> postprocess -> post_enrich -> build_metadata
+        return super().__call__(file_path)

@@ -52,9 +52,12 @@
 3. BaseProcessor를 상속하고 조합을 구성한다
 ---------------------------------------------
 
-:class:`base_processor.BaseProcessor`\ 가 ``file_handling``/``load``/``chunking``/
-``build_metadata``\ 를 이미 구현해뒀으므로, 서브클래스는 ``__init__``\ 에서
-``self.loader``/``self.chunker``/``self.metadata_builder``\ 만 채우면 된다.
+:class:`base_processor.BaseProcessor`\ 가 8단계 전부
+(``file_handling``/``load``/``preprocess``/``pre_enrich``/``chunking``/
+``postprocess``/``post_enrich``/``build_metadata``, 그리고 이들을 순서대로
+엮는 ``__call__(file_path)`` 자체)를 이미 구현해뒀으므로, 서브클래스는
+``__init__``\ 에서 ``self.loader``/``self.chunker``/``self.metadata_builder``\
+만 채우면 그걸로 끝이다:
 
 .. code-block:: python
 
@@ -71,24 +74,19 @@
    :meth:`~base_processor.BaseProcessor.load`\ 가 확장자로 이 딕셔너리를
    찾아 쓰기 때문이다. 확장자를 늘리고 싶으면 이 딕셔너리에 항목만 추가하면 된다.
 
-4. __call__을 구현한다
-------------------------
+4. (선택) __call__을 오버라이드한다
+--------------------------------------
 
-:meth:`~base_processor.BaseProcessor.__call__`\ 은 배포 맥락마다 진입점
-계약이 달라서(GenOS ``/run``\ 은 async + ``request`` 인자가 필요하지만, 이
-예제는 그럴 필요가 없다) ``BaseProcessor``\ 가 추상 메서드로 남겨뒀다.
-오버라이드하지 않으면 인스턴스화 시점에 ``TypeError``\ 가 난다.
+:meth:`~base_processor.BaseProcessor.__call__`\ 은 동기 ``(file_path)``
+시그니처로 8단계를 그대로 실행하는 구현체가 이미 있어서, 이 예제처럼 동기
+호출이면 오버라이드할 필요가 없다. GenOS ``/run``\ 처럼 진입점 계약이
+다를 때만(:class:`preprocessor.DocumentProcessor` 가 async + ``request``
+인자를 받는 것처럼) 오버라이드한다:
 
 .. code-block:: python
 
-   def __call__(self, file_path: str) -> List[dict]:
-       file_paths = self.file_handling(file_path)
-       try:
-           items = self.load(file_paths)
-           chunks = self.chunking(items)
-           return self.build_metadata(chunks)
-       finally:
-           self._cleanup_split_files(file_path, file_paths)
+   async def __call__(self, request, file_path: str, **params):
+       return super().__call__(file_path)
 
 5. (선택) 레이아웃/OCR을 더 세밀하게 고정하고 싶다면
 -------------------------------------------------------

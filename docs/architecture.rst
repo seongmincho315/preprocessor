@@ -4,20 +4,37 @@
 파이프라인
 ----------
 
-:class:`base_processor.BaseProcessor`\ 가 4단계 파이프라인을 정의하고,
-:class:`preprocessor.DocumentProcessor`\ 와 :class:`custom_preprocessor.DocumentProcessor`\ 는
-둘 다 이를 상속해 ``__init__``\ 에서 ``loader``/``chunker``/``metadata_builder``\ 만
-구성하고, 배포 맥락에 맞는 ``__call__``\ 만 각자 구현한다.
+:class:`base_processor.BaseProcessor`\ 가 8단계 파이프라인과, 그 8단계를
+순서대로 엮는 동기 ``__call__(file_path)`` 자체를 구현한다.
+:class:`preprocessor.DocumentProcessor`\ 와
+:class:`custom_preprocessor.DocumentProcessor`\ 는 둘 다 이를 상속해
+``__init__``\ 에서 ``loader``/``chunker``/``metadata_builder``\ 만 구성한다.
+``__call__``\ 은 진입점 계약이 다를 때만(GenOS ``/run``\ 의 async +
+``request``\ 인자처럼) 오버라이드한다 -
+:class:`preprocessor.DocumentProcessor`\ 는 ``super().__call__(file_path)``\
+로 그대로 위임한다.
 
 1. **파일 핸들링** (:meth:`~base_processor.BaseProcessor.file_handling`) -
    PDF가 ``max_page_split`` 페이지를 넘으면 여러 파일로 분할한다.
 2. **로드** (:meth:`~base_processor.BaseProcessor.load`) - 확장자별 로더가
    텍스트를 줄 단위로 추출하고, 레이아웃 전략으로 카테고리를 매기고,
    필요하면 OCR로 대체한다. 결과는 ``{text, category, bbox, page}`` 아이템.
-3. **청킹** (:meth:`~base_processor.BaseProcessor.chunking`) - 아이템을
+3. **전처리** (:meth:`~base_processor.BaseProcessor.preprocess`) - 룰 기반
+   전처리(예: 띄어쓰기 보정). 기본은 항등 함수(그대로 반환).
+4. **pre-Enrichment** (:meth:`~base_processor.BaseProcessor.pre_enrich`) -
+   외부 모델 기반 아이템 보강. 기본은 항등 함수.
+5. **청킹** (:meth:`~base_processor.BaseProcessor.chunking`) - 아이템을
    섹션/헤딩 기준으로 묶어 ``{text, i_page, e_page}`` 청크로 만든다.
-4. **메타데이터** (:meth:`~base_processor.BaseProcessor.build_metadata`) -
+6. **후처리** (:meth:`~base_processor.BaseProcessor.postprocess`) - 청크
+   단위 후처리. 기본은 항등 함수.
+7. **post-Enrichment** (:meth:`~base_processor.BaseProcessor.post_enrich`) -
+   외부 모델 기반 청크 보강(예: image_description, table_refiner). 기본은
+   항등 함수.
+8. **메타데이터** (:meth:`~base_processor.BaseProcessor.build_metadata`) -
    청크를 GenOS 서빙용 벡터 dict로 변환한다.
+
+3~4, 6~7단계는 지금은 자리만 잡아둔 스텁(입력을 그대로 반환)이다 - 룰 기반
+전처리나 외부 모델 보강이 필요해지면 해당 메서드만 오버라이드하면 된다.
 
 설정 기반 모듈 교체
 -------------------

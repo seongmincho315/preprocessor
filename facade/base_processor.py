@@ -2,17 +2,21 @@
 
 :class:`preprocessor.DocumentProcessor` (config.yaml 기반, GenOS ``/run`` 진입점)와
 :class:`custom_preprocessor.DocumentProcessor` (조합을 코드에 고정한 예제)는
-``file_handling -> load -> chunking -> build_metadata`` 4단계를 공유한다.
-이 클래스가 그 4단계를 구현하고, 서브클래스는 ``__init__`` 에서
+``file_handling -> load -> preprocess -> pre_enrich -> chunking ->
+postprocess -> post_enrich -> build_metadata`` 8단계를 공유한다. 이 클래스가
+그 8단계를 구현하고, 서브클래스는 ``__init__`` 에서
 ``self.loader``/``self.chunker``/``self.metadata_builder`` 만 채우면 된다.
+``preprocess``/``pre_enrich``/``postprocess``/``post_enrich`` 는 기본이 항등
+함수(입력을 그대로 반환)라 아무것도 채우지 않아도 되고, 필요한 서브클래스만
+오버라이드하면 된다.
 
-``__call__`` 은 배포 맥락마다 진입점 계약이 달라(예: GenOS의 async
-``(request, file_path, **params)`` vs 단순 동기 ``(file_path)``) 서브클래스가
-반드시 구현해야 하는 추상 메서드로 남겨둔다.
+``__call__`` 은 동기 ``(file_path)`` 진입점으로 이 8단계를 그대로 실행한다.
+GenOS ``/run`` 처럼 진입점 계약이 다른 배포(async, ``request``/``params``
+인자 필요)만 서브클래스에서 오버라이드한다.
 """
 
 import shutil
-from abc import ABC, abstractmethod
+from abc import ABC
 from pathlib import Path
 from typing import List
 
@@ -20,7 +24,8 @@ from util.util import file_split, get_ext
 
 
 class BaseProcessor(ABC):
-    """파일 분할 -> 로드 -> 청킹 -> 메타데이터 파이프라인의 공통 구현.
+    """파일 분할 -> 로드 -> 전처리/보강 -> 청킹 -> 후처리/보강 -> 메타데이터
+    파이프라인의 공통 구현.
 
     서브클래스가 ``__init__`` 에서 채워야 하는 인스턴스 속성:
 
@@ -64,11 +69,39 @@ class BaseProcessor(ABC):
             items.extend(self.loader[ext](file_path))
         return items
 
+    def preprocess(self, items: List[dict]) -> List[dict]:
+        """룰 기반 전처리(예: 띄어쓰기 보정, 사전 치환). 청킹 전, 아이템 단위로 적용된다.
+
+        기본은 아무 것도 하지 않고 ``items`` 를 그대로 반환한다 - 서브클래스가
+        필요할 때만 오버라이드한다.
+
+        Args:
+            items: :meth:`load` 가 반환한 아이템 목록.
+
+        Returns:
+            전처리된 아이템 목록.
+        """
+        return items
+
+    def pre_enrich(self, items: List[dict]) -> List[dict]:
+        """외부 모델 기반 보강. 청킹 전, 아이템 단위로 적용된다.
+
+        기본은 아무 것도 하지 않고 ``items`` 를 그대로 반환한다 - 서브클래스가
+        필요할 때만 오버라이드한다.
+
+        Args:
+            items: :meth:`preprocess` 가 반환한 아이템 목록.
+
+        Returns:
+            보강된 아이템 목록.
+        """
+        return items
+
     def chunking(self, items: List[dict]) -> List[dict]:
         """아이템을 청크로 묶는다.
 
         Args:
-            items: :meth:`load` 가 반환한 아이템 목록.
+            items: :meth:`pre_enrich` 가 반환한 아이템 목록.
 
         Returns:
             ``{text, i_page, e_page}`` 형태의 청크 목록. ``i_page``/``e_page`` 는
@@ -76,11 +109,40 @@ class BaseProcessor(ABC):
         """
         return self.chunker(items)
 
+    def postprocess(self, chunks: List[dict]) -> List[dict]:
+        """청크 단위 후처리. 청킹 후, 메타데이터 변환 전에 적용된다.
+
+        기본은 아무 것도 하지 않고 ``chunks`` 를 그대로 반환한다 - 서브클래스가
+        필요할 때만 오버라이드한다.
+
+        Args:
+            chunks: :meth:`chunking` 이 반환한 청크 목록.
+
+        Returns:
+            후처리된 청크 목록.
+        """
+        return chunks
+
+    def post_enrich(self, chunks: List[dict]) -> List[dict]:
+        """외부 모델 기반 보강(예: image_description, table_refiner). 청크 단위로,
+        메타데이터 변환 전에 적용된다.
+
+        기본은 아무 것도 하지 않고 ``chunks`` 를 그대로 반환한다 - 서브클래스가
+        필요할 때만 오버라이드한다.
+
+        Args:
+            chunks: :meth:`postprocess` 가 반환한 청크 목록.
+
+        Returns:
+            보강된 청크 목록.
+        """
+        return chunks
+
     def build_metadata(self, chunks: List[dict], file_path: str = None) -> List[dict]:
         """청크 목록을 GenOS 서빙용 벡터 dict 목록(메타데이터)으로 변환한다.
 
         Args:
-            chunks: :meth:`chunking` 이 반환한 청크 목록.
+            chunks: :meth:`post_enrich` 가 반환한 청크 목록.
             file_path: 원본 파일 경로(현재 구현에서는 사용하지 않음).
 
         Returns:
@@ -88,14 +150,31 @@ class BaseProcessor(ABC):
         """
         return self.metadata_builder(chunks)
 
-    @abstractmethod
-    def __call__(self, *args, **kwargs) -> List[dict]:
-        """전체 파이프라인(파일 분할 -> 로드 -> 청킹 -> 메타데이터)을 실행한다.
+    def __call__(self, file_path: str) -> List[dict]:
+        """전체 파이프라인(파일 분할 -> 로드 -> 전처리/보강 -> 청킹 -> 후처리/보강
+        -> 메타데이터)을 동기적으로 실행한다.
 
-        배포 맥락에 따라 시그니처가 달라지므로(GenOS ``/run`` async 진입점 vs
-        단순 동기 호출) 서브클래스가 직접 구현해야 한다.
+        GenOS ``/run`` 처럼 진입점 계약이 다른 배포(async, ``request``/``params``
+        인자 필요)는 서브클래스가 이 메서드를 오버라이드한다
+        (:class:`preprocessor.DocumentProcessor` 참고).
+
+        Args:
+            file_path: 처리할 원본 파일 경로.
+
+        Returns:
+            :meth:`build_metadata` 가 반환한 벡터 dict 목록.
         """
-        raise NotImplementedError
+        file_paths = self.file_handling(file_path)
+        try:
+            items = self.load(file_paths)
+            items = self.preprocess(items)
+            items = self.pre_enrich(items)
+            chunks = self.chunking(items)
+            chunks = self.postprocess(chunks)
+            chunks = self.post_enrich(chunks)
+            return self.build_metadata(chunks, file_path)
+        finally:
+            self._cleanup_split_files(file_path, file_paths)
 
     @staticmethod
     def _cleanup_split_files(file_path: str, file_paths: List[str]) -> None:

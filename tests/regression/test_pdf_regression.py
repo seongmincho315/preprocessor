@@ -20,7 +20,9 @@ def _run_pipeline(document_processor, pdf_path: Path) -> dict:
     file_paths = dp.file_handling(str(pdf_path))
     try:
         items = dp.load(file_paths)
+        items = dp.pre_enrich(dp.preprocess(items))
         chunks = dp.chunking(items)
+        chunks = dp.post_enrich(dp.postprocess(chunks))
         vectors = dp.build_metadata(chunks, str(pdf_path))
     finally:
         dp._cleanup_split_files(str(pdf_path), file_paths)

@@ -153,14 +153,8 @@ e_page}`` 청크 목록으로 바꾸는 컴포넌트다. ``smart_chunker``/``hie
            self.chunker = MyChunker(chunk_size=1000, chunk_overlap=100)
            self.metadata_builder = GenosMetadata()
 
-       def __call__(self, file_path: str) -> List[dict]:
-           file_paths = self.file_handling(file_path)
-           try:
-               items = self.load(file_paths)
-               chunks = self.chunking(items)
-               return self.build_metadata(chunks)
-           finally:
-               self._cleanup_split_files(file_path, file_paths)
+       # __call__(file_path) -> List[dict] 은 base_processor.BaseProcessor 의
+       # 구현을 그대로 쓴다 - 동기 (file_path) 진입점이면 오버라이드할 필요가 없다.
 
 새로 만든 청커(``MyChunker``)만 바뀌었을 뿐, 로더/메타데이터는
 :mod:`custom_preprocessor` 의 조합을 그대로 가져다 썼다. 실제로는

@@ -58,7 +58,9 @@ config.yaml 전체 구조
    processor = DocumentProcessor()  # resource/config.yaml을 읽어 조립
    file_paths = processor.file_handling("sample/pdf/long(eng)/Information Theory.pdf")
    items = processor.load(file_paths)
+   items = processor.pre_enrich(processor.preprocess(items))  # 기본은 항등 함수(스텁)
    chunks = processor.chunking(items)
+   chunks = processor.post_enrich(processor.postprocess(chunks))  # 기본은 항등 함수(스텁)
    vectors = processor.build_metadata(chunks, file_paths[0])
 
 ``chunker.type``\ 이나 ``ext.pdf``\ 값만 바꿔서 다시 실행해보면 코드 변경
