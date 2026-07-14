@@ -1,7 +1,7 @@
 # <img src="docs/_static/logo.png" alt="logo" width="25"> doc-parser-preprocessor[해적판]
 
 
-[[docs](https://github.com/seongmincho315/preprocessor/tree/main/docs)]
+[[docs](https://seongmincho315.github.io/preprocessor/)]
 
 ## 파이프라인
 
