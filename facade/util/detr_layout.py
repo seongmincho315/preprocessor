@@ -9,7 +9,7 @@ from util.util import CATEGORIES
 
 
 class DetrLayout:
-    """페이지 이미지를 detr 서버 `/detect`\ 로 보내 감지된 region으로 각 줄의 category를 매긴다.
+    """페이지 이미지를 detr 서버 `/detect` 로 보내 감지된 region으로 각 줄의 category를 매긴다.
 
     Attributes:
         url (str): detr 서버 base URL.
@@ -23,11 +23,11 @@ class DetrLayout:
     def __init__(self, config: dict = None):
         """
         Args:
-            config: ``url``, ``image_dpi``, ``timeout``\ 을 담은 설정 dict
+            config: ``url``, ``image_dpi``, ``timeout`` 을 담은 설정 dict
                 (예: ``resource/detr.yaml`` 내용).
 
         Raises:
-            ValueError: ``config``\ 에 ``url``\ 이 없을 때.
+            ValueError: ``config`` 에 ``url`` 이 없을 때.
         """
         config = config or {}
         self.url = config.get("url")
@@ -45,10 +45,10 @@ class DetrLayout:
 
         Args:
             lines: ``(text, bbox, font_size)`` 튜플 목록.
-            image: 페이지 이미지(PNG bytes). ``None``\ 이면 모든 줄을 ``"text"``\ 로 취급한다.
+            image: 페이지 이미지(PNG bytes). ``None`` 이면 모든 줄을 ``"text"`` 로 취급한다.
 
         Returns:
-            ``lines``\ 와 같은 길이의 카테고리 문자열 목록.
+            ``lines`` 와 같은 길이의 카테고리 문자열 목록.
         """
         if not lines:
             return []
@@ -65,7 +65,7 @@ class DetrLayout:
         return [self._match_category(bbox, regions) for _, bbox, _ in lines]
 
     def _detect(self, image: bytes) -> List[dict]:
-        """detr 서버 ``/detect``\ 를 호출해 이미지 하나의 감지 region 목록을 받는다.
+        """detr 서버 ``/detect`` 를 호출해 이미지 하나의 감지 region 목록을 받는다.
 
         Args:
             image: 페이지 이미지(PNG bytes).
@@ -90,7 +90,7 @@ class DetrLayout:
 
         Args:
             bbox: 줄의 ``(x0, y0, x1, y1)``.
-            regions: :meth:`_detect`\ 가 반환한 region 목록(스케일 보정 완료).
+            regions: :meth:`_detect` 가 반환한 region 목록(스케일 보정 완료).
 
         Returns:
             매칭되는 region이 없으면 ``"text"``, 있으면 :meth:`_to_category` 결과.
@@ -111,7 +111,7 @@ class DetrLayout:
             label: detr이 반환한 원본 label 문자열(예: ``"Section Header"``).
 
         Returns:
-            ``CATEGORIES``\ 에 속하는 정규화된 카테고리, 없으면 ``"text"``.
+            ``CATEGORIES`` 에 속하는 정규화된 카테고리, 없으면 ``"text"``.
         """
         key = label.lower().replace(" ", "_").replace("-", "_")
         return key if key in CATEGORIES else "text"

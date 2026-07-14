@@ -1,4 +1,4 @@
-"""pypdf 기반 PDF 로더. ``ext.pdf``\ 가 ``pypdf``\ 일 때 쓰인다.
+"""pypdf 기반 PDF 로더. ``ext.pdf`` 가 ``pypdf`` 일 때 쓰인다.
 
 PyMuPDF 로더(:mod:`loader.pdf.pymupdf`)의 대안으로, 페이지 이미지 렌더링을
 지원하지 않으므로(항상 ``None``) 이미지가 필요한 레이아웃/OCR 전략과는
@@ -20,7 +20,7 @@ class Loader(BaseLoader):
             file_path: 읽을 PDF 파일 경로.
 
         Yields:
-            ``(lines, None)`` 튜플. ``lines``\ 는 :meth:`_extract_lines`\ 의 결과.
+            ``(lines, None)`` 튜플. ``lines`` 는 :meth:`_extract_lines` 의 결과.
         """
         reader = PdfReader(file_path)
         for page in reader.pages:

@@ -19,16 +19,16 @@ force: 모든 페이지를 무조건 OCR, disable: OCR을 아예 쓰지 않음."
 class BaseLoader(ABC):
     """파일을 읽어 ``{text, category, bbox, page}`` 아이템 목록으로 변환하는 로더의 베이스 클래스.
 
-    서브클래스는 :meth:`_extract_pages`\ 만 구현하면 되고, 레이아웃 분석/OCR 적용/
+    서브클래스는 :meth:`_extract_pages` 만 구현하면 되고, 레이아웃 분석/OCR 적용/
     아이템 조립은 이 클래스가 공통으로 처리한다.
 
     Attributes:
         layout_config (dict): ``layout.type``, ``image_dpi`` 등 레이아웃 전략 설정.
         ocr_config (dict): ``ocr.type``, ``ocr.mode`` 등 OCR 전략 설정.
         image_dpi (int): 페이지를 이미지로 렌더링할 때 쓰는 DPI.
-        ocr_mode (str): :data:`OCR_MODES` 중 하나. 잘못된 값이면 ``"auto"``\ 로 대체.
-        layout: :meth:`get_layout`\ 으로 생성된 레이아웃 분석 전략 인스턴스.
-        ocr: :meth:`get_ocr`\ 로 생성된 OCR 전략 인스턴스(``None``\ 이면 OCR 미사용).
+        ocr_mode (str): :data:`OCR_MODES` 중 하나. 잘못된 값이면 ``"auto"`` 로 대체.
+        layout: :meth:`get_layout` 으로 생성된 레이아웃 분석 전략 인스턴스.
+        ocr: :meth:`get_ocr` 로 생성된 OCR 전략 인스턴스(``None`` 이면 OCR 미사용).
     """
 
     def __init__(self, layout_config: dict = None, ocr_config: dict = None):

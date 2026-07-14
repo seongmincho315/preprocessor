@@ -7,7 +7,7 @@ from typing import List, Tuple
 
 
 class PaddleOcr:
-    """페이지 이미지를 paddle-ocr 서버 `/ocr`\ 로 보내 (text, bbox, font_size=0) 줄 목록을 얻는다.
+    """페이지 이미지를 paddle-ocr 서버 `/ocr` 로 보내 (text, bbox, font_size=0) 줄 목록을 얻는다.
 
     Attributes:
         url (str): paddle-ocr 서버 base URL.
@@ -17,10 +17,10 @@ class PaddleOcr:
     def __init__(self, config: dict = None):
         """
         Args:
-            config: ``url``, ``timeout``\ 을 담은 설정 dict(예: ``resource/paddle.yaml`` 내용).
+            config: ``url``, ``timeout`` 을 담은 설정 dict(예: ``resource/paddle.yaml`` 내용).
 
         Raises:
-            ValueError: ``config``\ 에 ``url``\ 이 없을 때.
+            ValueError: ``config`` 에 ``url`` 이 없을 때.
         """
         config = config or {}
         self.url = config.get("url")
@@ -33,12 +33,12 @@ class PaddleOcr:
 
         Args:
             image: 페이지 이미지(PNG bytes).
-            dpi: ``image``\ 를 렌더링한 DPI. bbox를 72dpi(PDF 포인트) 기준으로
+            dpi: ``image`` 를 렌더링한 DPI. bbox를 72dpi(PDF 포인트) 기준으로
                 스케일 보정하는 데 쓰인다.
 
         Returns:
             ``(text, (x0, y0, x1, y1), 0.0)`` 튜플 목록. font_size는 OCR 결과에
-            없으므로 항상 ``0.0``\ 이다.
+            없으므로 항상 ``0.0`` 이다.
         """
         texts, scores, boxes = self._ocr(image)
         # rec_boxes는 image_dpi 기준 픽셀 좌표라, 나머지 줄 bbox(PDF 포인트, 72dpi 기준)와 스케일을 맞춘다.
@@ -50,7 +50,7 @@ class PaddleOcr:
         ]
 
     def _ocr(self, image: bytes) -> Tuple[List[str], List[float], List[List[float]]]:
-        """paddle-ocr 서버 ``/ocr``\ 을 호출해 원시 인식 결과를 받는다.
+        """paddle-ocr 서버 ``/ocr`` 을 호출해 원시 인식 결과를 받는다.
 
         Args:
             image: 페이지 이미지(PNG bytes).

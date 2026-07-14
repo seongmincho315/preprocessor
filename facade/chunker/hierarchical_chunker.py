@@ -1,4 +1,4 @@
-"""아이템 하나당 청크 하나(병합/분할 없음)인 청커. ``chunker.type: hierarchical_chunker``\ 로 선택된다."""
+"""아이템 하나당 청크 하나(병합/분할 없음)인 청커. ``chunker.type: hierarchical_chunker`` 로 선택된다."""
 
 from typing import List, Optional
 
@@ -12,7 +12,7 @@ class Chunker:
         Args:
             chunk_size: 병합/분할을 하지 않아 실제로는 쓰이지 않는다. 다른
                 ``Chunker`` 구현체와 생성자 시그니처를 맞추기 위해서만 받는다.
-            chunk_overlap: ``chunk_size``\ 와 마찬가지로 쓰이지 않는다.
+            chunk_overlap: ``chunk_size`` 와 마찬가지로 쓰이지 않는다.
         """
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap

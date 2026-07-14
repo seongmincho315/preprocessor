@@ -20,8 +20,8 @@ class GenosMetadata:
             각 청크마다 ``text``, ``n_chars``/``n_words``/``n_lines``,
             ``i_page``/``e_page``/``n_page``,
             ``i_chunk_on_page``/``n_chunk_of_page``,
-            ``i_chunk_on_doc``/``n_chunk_of_doc``, ``reg_date``\ 를 담은 dict
-            목록. ``chunks``\ 가 비어 있으면 빈 리스트.
+            ``i_chunk_on_doc``/``n_chunk_of_doc``, ``reg_date`` 를 담은 dict
+            목록. ``chunks`` 가 비어 있으면 빈 리스트.
         """
         if not chunks:
             return []

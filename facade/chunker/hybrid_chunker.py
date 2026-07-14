@@ -1,4 +1,4 @@
-"""헤딩 단위 병합(merge_peers) + 분할 청커. ``chunker.type: hybrid_chunker``\ 로 선택된다."""
+"""헤딩 단위 병합(merge_peers) + 분할 청커. ``chunker.type: hybrid_chunker`` 로 선택된다."""
 
 from typing import List, Optional, Tuple
 
@@ -72,7 +72,7 @@ class Chunker:
         """같은 heading을 공유하는 인접 청크를 chunk_size 안에서 합친다(페이지 범위도 함께 병합).
 
         Args:
-            chunks: :meth:`_hierarchical`\ 이 반환한 튜플 목록.
+            chunks: :meth:`_hierarchical` 이 반환한 튜플 목록.
             chunk_size: 병합 후 텍스트가 넘지 말아야 할 최대 문자 수.
 
         Returns:
@@ -94,7 +94,7 @@ class Chunker:
 
     @staticmethod
     def _render(heading: Optional[str], text: str) -> str:
-        """heading과 본문 텍스트를 ``", "``\ 로 합친다(heading 없으면 본문만)."""
+        """heading과 본문 텍스트를 ``", "`` 로 합친다(heading 없으면 본문만)."""
         return ", ".join(t for t in (heading, text) if t)
 
     @classmethod

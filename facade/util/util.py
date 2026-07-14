@@ -133,7 +133,7 @@ _BAD_CHAR_RANGES = (
 
 
 def _count_bad_chars(text: str) -> int:
-    """text 안에서 :data:`_BAD_CHAR_RANGES`\ 에 속하는 문자 수를 센다."""
+    """text 안에서 :data:`_BAD_CHAR_RANGES` 에 속하는 문자 수를 센다."""
     return sum(
         1 for ch in text if any(lo <= ord(ch) <= hi for lo, hi in _BAD_CHAR_RANGES)
     )
@@ -150,6 +150,6 @@ def has_glyph_corruption(
         threshold: 이 값을 초과하는 글리프 손상 문자 수가 나오면 손상으로 판단한다.
 
     Returns:
-        글리프 손상 문자 수가 ``threshold``\ 를 초과하면 ``True``.
+        글리프 손상 문자 수가 ``threshold`` 를 초과하면 ``True``.
     """
     return sum(_count_bad_chars(text) for text, _, _ in lines) > threshold

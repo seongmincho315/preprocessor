@@ -1,4 +1,4 @@
-"""section_header 경계 기준 청커. ``config.yaml``\ 의 ``chunker.type: smart_chunker``\ 로 선택된다."""
+"""section_header 경계 기준 청커. ``config.yaml`` 의 ``chunker.type: smart_chunker`` 로 선택된다."""
 
 from typing import List, Optional, Tuple
 
@@ -24,7 +24,7 @@ class Chunker:
             items: 로더가 반환한 ``{text, category, bbox, page}`` 아이템 목록.
 
         Returns:
-            ``{text, i_page, e_page}`` 청크 목록. ``i_page``/``e_page``\ 는 그
+            ``{text, i_page, e_page}`` 청크 목록. ``i_page``/``e_page`` 는 그
             청크가 속한 섹션(헤딩+본문)이 걸쳐 있는 페이지 범위다.
         """
         chunks = []
@@ -61,7 +61,7 @@ class Chunker:
 
         Returns:
             ``(heading, heading_page, body_items)`` 튜플 목록. 첫 section_header
-            이전에 나온 아이템은 ``heading=None``\ 인 섹션으로 묶인다.
+            이전에 나온 아이템은 ``heading=None`` 인 섹션으로 묶인다.
         """
         sections = []
         heading, heading_page, body = None, None, []

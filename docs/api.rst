@@ -5,6 +5,7 @@ API 레퍼런스
    :toctree: _autosummary
    :recursive:
 
+   base_processor
    preprocessor
    custom_preprocessor
    loader.base_loader

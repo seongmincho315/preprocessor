@@ -10,7 +10,7 @@ HEADER_FONT_SIZE_RATIO = 1.2
 
 class Layout:
     """페이지에서 가장 흔한 폰트 크기를 본문(body) 크기로 보고, 그보다
-    :data:`HEADER_FONT_SIZE_RATIO` 배 이상 큰 줄을 ``section_header``\ 로 분류한다."""
+    :data:`HEADER_FONT_SIZE_RATIO` 배 이상 큰 줄을 ``section_header`` 로 분류한다."""
 
     def __init__(self, config: dict = None):
         """
@@ -27,10 +27,10 @@ class Layout:
 
         Args:
             lines: ``(text, bbox, font_size)`` 튜플 목록.
-            image: 이 전략에서는 쓰이지 않는다(``NEEDS_IMAGE``\ 가 없어 항상 ``None``).
+            image: 이 전략에서는 쓰이지 않는다(``NEEDS_IMAGE`` 가 없어 항상 ``None``).
 
         Returns:
-            ``lines``\ 와 같은 길이의 카테고리 문자열 목록(``"section_header"`` 또는 ``"text"``).
+            ``lines`` 와 같은 길이의 카테고리 문자열 목록(``"section_header"`` 또는 ``"text"``).
         """
         body_size = self._most_common_font_size(lines)
         return [self._classify(font_size, body_size) for _, _, font_size in lines]

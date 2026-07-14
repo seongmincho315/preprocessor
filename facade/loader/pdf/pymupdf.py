@@ -1,4 +1,4 @@
-"""PyMuPDF(``fitz``) 기반 PDF 로더. ``ext.pdf``\ 가 ``pymupdf``\ 일 때 쓰인다."""
+"""PyMuPDF(``fitz``) 기반 PDF 로더. ``ext.pdf`` 가 ``pymupdf`` 일 때 쓰인다."""
 
 import fitz  # PyMuPDF
 
@@ -15,8 +15,8 @@ class Loader(BaseLoader):
             file_path: 읽을 PDF 파일 경로.
 
         Yields:
-            ``(lines, image)`` 튜플. ``lines``\ 는 :meth:`_extract_lines`\ 의 결과,
-            ``image``\ 는 :attr:`needs_image`(레이아웃/OCR 전략이 이미지를 필요로
+            ``(lines, image)`` 튜플. ``lines`` 는 :meth:`_extract_lines` 의 결과,
+            ``image`` 는 :attr:`needs_image`(레이아웃/OCR 전략이 이미지를 필요로
             할 때)일 때만 PNG bytes, 아니면 ``None``.
         """
         doc = fitz.open(file_path)
