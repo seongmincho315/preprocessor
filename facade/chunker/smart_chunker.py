@@ -2,20 +2,13 @@
 
 from typing import List, Optional, Tuple
 
+from chunker.base_chunker import BaseChunker
 
-class Chunker:
+
+class Chunker(BaseChunker):
     """section_header 경계로 섹션을 나누고 각 섹션 앞에 헤딩을 붙인 뒤,
     chunk_size(문자 수)를 넘으면 겹치게 분할한다. chunk_size가 0/None이면 섹션을 통째로 반환한다.
     (doc_parser 레포 GenosSmartChunker의 '헤딩 유지 + 섹션 기준 분할' 아이디어를 문자 기반으로 단순화)"""
-
-    def __init__(self, chunk_size: int = 0, chunk_overlap: int = 100):
-        """
-        Args:
-            chunk_size: 청크 하나의 최대 문자 수. 0/None이면 섹션을 쪼개지 않는다.
-            chunk_overlap: 분할 시 인접 조각끼리 겹치는 문자 수.
-        """
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
 
     def __call__(self, items: List[dict]) -> List[dict]:
         """아이템 목록을 섹션 단위로 묶고 필요시 분할해 청크 목록으로 반환한다.
@@ -30,7 +23,7 @@ class Chunker:
         chunks = []
         for heading, heading_page, body_items in self._group_by_section(items):
             body_text = "\n".join(item["text"] for item in body_items)
-            section_text = ", ".join(t for t in (heading, body_text) if t)
+            section_text = self._render(heading, body_text)
             if not section_text:
                 continue
 
@@ -76,8 +69,8 @@ class Chunker:
             sections.append((heading, heading_page, body))
         return sections
 
-    @staticmethod
-    def _split_with_heading(heading: Optional[str], body_text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
+    @classmethod
+    def _split_with_heading(cls, heading: Optional[str], body_text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
         """body_text를 chunk_size 기준으로 겹치게 자르고, 조각마다 heading을 다시 붙인다.
 
         Args:
@@ -91,12 +84,4 @@ class Chunker:
         """
         if not body_text:
             return [heading] if heading else []
-
-        pieces = []
-        start = 0
-        while start < len(body_text):
-            end = start + chunk_size
-            pieces.append(body_text[start:end])
-            start = end - chunk_overlap if end < len(body_text) else end
-
-        return [", ".join(t for t in (heading, piece) if t) for piece in pieces]
+        return [cls._render(heading, piece) for piece in cls._split_text(body_text, chunk_size, chunk_overlap)]

@@ -2,20 +2,16 @@
 
 from typing import List, Optional
 
+from chunker.base_chunker import BaseChunker
 
-class Chunker:
+
+class Chunker(BaseChunker):
     """docling의 HierarchicalChunker처럼 병합/분할 없이 아이템 하나당 청크 하나를 만든다.
-    직전 section_header를 heading으로 붙여 문맥만 유지한다."""
+    직전 section_header를 heading으로 붙여 문맥만 유지한다.
 
-    def __init__(self, chunk_size: int = 0, chunk_overlap: int = 100):
-        """
-        Args:
-            chunk_size: 병합/분할을 하지 않아 실제로는 쓰이지 않는다. 다른
-                ``Chunker`` 구현체와 생성자 시그니처를 맞추기 위해서만 받는다.
-            chunk_overlap: ``chunk_size`` 와 마찬가지로 쓰이지 않는다.
-        """
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
+    ``chunk_size``/``chunk_overlap`` 은 병합/분할을 하지 않아 실제로는 쓰이지
+    않지만, 다른 ``Chunker`` 구현체와 생성자 시그니처를 맞추기 위해 :class:`~chunker.base_chunker.BaseChunker`
+    로부터 그대로 받는다."""
 
     def __call__(self, items: List[dict]) -> List[dict]:
         """section_header가 아닌 아이템마다 청크 하나씩 만든다.
@@ -38,7 +34,7 @@ class Chunker:
                 continue
             chunks.append(
                 {
-                    "text": ", ".join(t for t in (heading, text) if t),
+                    "text": self._render(heading, text),
                     "i_page": item["page"],
                     "e_page": item["page"],
                 }

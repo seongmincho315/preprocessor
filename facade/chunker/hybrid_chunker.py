@@ -2,21 +2,13 @@
 
 from typing import List, Optional, Tuple
 
+from chunker.base_chunker import BaseChunker
 
-class Chunker:
+
+class Chunker(BaseChunker):
     """docling의 HybridChunker처럼, HierarchicalChunker 결과(아이템당 청크 1개)를
     같은 heading을 공유하는 것끼리 chunk_size 안에서 합치고(merge_peers),
     그래도 넘치는 청크는 겹치게 분할한다. chunk_size가 0/None이면 병합 없이 그대로 반환한다."""
-
-    def __init__(self, chunk_size: int = 0, chunk_overlap: int = 100):
-        """
-        Args:
-            chunk_size: 청크 하나의 최대 문자 수. 0/None이면 병합/분할 없이
-                아이템당 청크 하나를 그대로 반환한다.
-            chunk_overlap: 분할 시 인접 조각끼리 겹치는 문자 수.
-        """
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
 
     def __call__(self, items: List[dict]) -> List[dict]:
         """아이템을 헤딩 단위로 병합하고, 넘치면 분할해 청크 목록으로 반환한다.
@@ -92,11 +84,6 @@ class Chunker:
                 merged.append((heading, text, i_page, e_page))
         return merged
 
-    @staticmethod
-    def _render(heading: Optional[str], text: str) -> str:
-        """heading과 본문 텍스트를 ``", "`` 로 합친다(heading 없으면 본문만)."""
-        return ", ".join(t for t in (heading, text) if t)
-
     @classmethod
     def _split(
         cls, heading: Optional[str], text: str, i_page: int, e_page: int, chunk_size: int, chunk_overlap: int
@@ -116,10 +103,7 @@ class Chunker:
             ``{text, i_page, e_page}`` 청크 목록. 모든 조각이 같은 페이지
             범위(``i_page``, ``e_page``)를 공유한다.
         """
-        pieces = []
-        start = 0
-        while start < len(text):
-            end = start + chunk_size
-            pieces.append(text[start:end])
-            start = end - chunk_overlap if end < len(text) else end
-        return [{"text": cls._render(heading, piece), "i_page": i_page, "e_page": e_page} for piece in pieces]
+        return [
+            {"text": cls._render(heading, piece), "i_page": i_page, "e_page": e_page}
+            for piece in cls._split_text(text, chunk_size, chunk_overlap)
+        ]

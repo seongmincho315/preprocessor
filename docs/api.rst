@@ -12,6 +12,7 @@ API 레퍼런스
    loader.pdf.pymupdf
    loader.pdf.pypdf
    converter.libreoffice
+   chunker.base_chunker
    chunker.smart_chunker
    chunker.hierarchical_chunker
    chunker.hybrid_chunker

@@ -27,9 +27,14 @@
 ``ext.<확장자>``, 레이아웃은 ``layout.type``, OCR은 ``ocr.type``, 청커는
 ``chunker.type``). 새 전략을 추가하려면 해당 패키지 밑에 같은 인터페이스
 (``Loader``/``Layout``/``Chunker`` 클래스, 같은 시그니처)를 구현한 모듈만
-추가하면 되고, 다른 코드는 건드릴 필요가 없다.
+추가하면 되고, 다른 코드는 건드릴 필요가 없다. 로더는
+:class:`loader.base_loader.BaseLoader`\ 를, 청커는
+:class:`chunker.base_chunker.BaseChunker`\ 를 상속해 공통 로직(로더는 OCR
+필요 여부 판단/레이아웃 적용, 청커는 heading 렌더링/슬라이딩 윈도우 분할)을
+그대로 물려받는다.
 
-이 동적 로딩 대신 조합을 코드에 고정해두고 싶다면 :doc:`custom_preprocessor`\ 를 참고.
+이 동적 로딩 대신 조합을 코드에 고정해두고 싶다면 :doc:`custom_preprocessor`\ 를,
+새 청킹 전략을 처음부터 만드는 법은 :doc:`custom_chunker`\ 를 참고.
 
 OCR이 호출되는 조건
 -------------------
