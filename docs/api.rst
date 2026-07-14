@@ -11,6 +11,7 @@ API 레퍼런스
    loader.base_loader
    loader.pdf.pymupdf
    loader.pdf.pypdf
+   loader.html.bs4
    converter.libreoffice
    chunker.base_chunker
    chunker.smart_chunker

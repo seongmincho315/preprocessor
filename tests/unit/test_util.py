@@ -51,6 +51,14 @@ class TestFileSplit:
         for split_path in result:
             assert Path(split_path).exists()
 
+    def test_non_pdf_passes_through_unchanged(self, tmp_path):
+        path = tmp_path / "sample.html"
+        path.write_text("<html><body><p>hi</p></body></html>", encoding="utf-8")
+
+        result = file_split(str(path), max_page_split=1, base_dir=tmp_path)
+
+        assert result == [str(path)]
+
 
 class TestHasGlyphCorruption:
     CLEAN = [("hello world", (0, 0, 1, 1), 10.0), ("another normal line", (0, 0, 1, 1), 10.0)]

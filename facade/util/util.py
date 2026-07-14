@@ -81,21 +81,19 @@ def get_ext(file_path: str) -> str:
 def file_split(file_path: str, max_page_split: int, base_dir: Path) -> List[str]:
     """PDF가 max_page_split 페이지를 넘으면 여러 파일로 잘라 경로 목록을 반환한다.
     저장방식: <base_dir>/<파일이름>/1.pdf, 2.pdf ......
+    페이지 개념이 없는 포맷(html 등)은 분할 없이 원본 경로를 그대로 반환한다.
 
     Args:
-        file_path: 원본 PDF 파일 경로.
-        max_page_split: 이 페이지 수를 넘으면 분할한다.
+        file_path: 원본 파일 경로.
+        max_page_split: 이 페이지 수를 넘으면 분할한다(pdf에만 적용).
         base_dir: 분할된 파일을 저장할 상위 디렉터리.
 
     Returns:
-        처리할 파일 경로 목록. 분할이 필요 없으면 ``[file_path]``.
-
-    Raises:
-        ValueError: PDF가 아닌 파일을 넘겼을 때.
+        처리할 파일 경로 목록. pdf가 아니거나 분할이 필요 없으면 ``[file_path]``.
     """
     ext = get_ext(file_path)
     if ext != "pdf":
-        raise ValueError(f"지원하지 않는 파일 형식입니다: {ext}")
+        return [file_path]
 
     reader = PdfReader(file_path)
     num_pages = len(reader.pages)
