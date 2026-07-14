@@ -10,36 +10,46 @@ class Chunker:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
-    def __call__(self, items: List[dict]) -> List[str]:
+    def __call__(self, items: List[dict]) -> List[dict]:
         chunks = []
-        for heading, body_items in self._group_by_section(items):
+        for heading, heading_page, body_items in self._group_by_section(items):
             body_text = "\n".join(item["text"] for item in body_items)
             section_text = ", ".join(t for t in (heading, body_text) if t)
             if not section_text:
                 continue
 
+            # 섹션(헤딩+본문 전체)이 걸쳐 있는 페이지 범위. chunk_size로 쪼갠 조각들도
+            # 정확한 글자 단위 페이지 추적 대신 이 섹션 범위를 그대로 물려받는다(근사치).
+            pages = [item["page"] for item in body_items]
+            if heading_page is not None:
+                pages.append(heading_page)
+            i_page, e_page = min(pages), max(pages)
+
             if not self.chunk_size:
-                chunks.append(section_text)
+                chunks.append({"text": section_text, "i_page": i_page, "e_page": e_page})
                 continue
 
-            chunks.extend(self._split_with_heading(heading, body_text, self.chunk_size, self.chunk_overlap))
+            chunks.extend(
+                {"text": text, "i_page": i_page, "e_page": e_page}
+                for text in self._split_with_heading(heading, body_text, self.chunk_size, self.chunk_overlap)
+            )
 
         return chunks
 
     @staticmethod
-    def _group_by_section(items: List[dict]) -> List[Tuple[Optional[str], List[dict]]]:
-        """category가 section_header인 아이템을 기준으로 (heading, body_items) 목록을 만든다."""
+    def _group_by_section(items: List[dict]) -> List[Tuple[Optional[str], Optional[int], List[dict]]]:
+        """category가 section_header인 아이템을 기준으로 (heading, heading_page, body_items) 목록을 만든다."""
         sections = []
-        heading, body = None, []
+        heading, heading_page, body = None, None, []
         for item in items:
             if item.get("category") == "section_header":
                 if heading is not None or body:
-                    sections.append((heading, body))
-                heading, body = item["text"], []
+                    sections.append((heading, heading_page, body))
+                heading, heading_page, body = item["text"], item["page"], []
             else:
                 body.append(item)
         if heading is not None or body:
-            sections.append((heading, body))
+            sections.append((heading, heading_page, body))
         return sections
 
     @staticmethod

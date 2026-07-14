@@ -10,7 +10,7 @@ class Chunker:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
-    def __call__(self, items: List[dict]) -> List[str]:
+    def __call__(self, items: List[dict]) -> List[dict]:
         chunks = []
         heading: Optional[str] = None
         for item in items:
@@ -20,5 +20,11 @@ class Chunker:
             text = item.get("text")
             if not text:
                 continue
-            chunks.append(", ".join(t for t in (heading, text) if t))
+            chunks.append(
+                {
+                    "text": ", ".join(t for t in (heading, text) if t),
+                    "i_page": item["page"],
+                    "e_page": item["page"],
+                }
+            )
         return chunks

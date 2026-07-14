@@ -53,7 +53,7 @@ class DocumentProcessor:
             chunk_size=config["chunker"]["chunk_size"],
             chunk_overlap=config["chunker"]["over_lap"],
         )
-        self.metadata_builder = importlib.import_module("metadata.test").build
+        self.metadata_builder = importlib.import_module("metadata.genos").GenosMetadata()
 
     def file_handling(self, file_path: str) -> List[str]:
         """PDF가 50페이지를 넘으면 여러 파일로 잘라 경로 목록을 반환한다.
@@ -74,12 +74,13 @@ class DocumentProcessor:
         # 딕셔너리 기능도 필요하겠당
         pass
 
-    def chunking(self, items: List[dict]) -> List[str]:
-        """아이템의 텍스트를 이어붙인 뒤 chunk_size 기준으로 겹치게 분할한다."""
+    def chunking(self, items: List[dict]) -> List[dict]:
+        """아이템의 텍스트를 이어붙인 뒤 chunk_size 기준으로 겹치게 분할한다.
+        각 청크는 {text, i_page, e_page}로, 페이지 범위를 함께 담는다."""
         return self.chunker(items)
 
-    def build_metadata(self, chunks: List[str], file_path: str) -> List[dict]:
-        """청크 목록을 서빙용 벡터 dict 목록으로 변환한다."""
+    def build_metadata(self, chunks: List[dict], file_path: str) -> List[dict]:
+        """청크 목록을 GenOS 서빙용 벡터 dict 목록(메타데이터)으로 변환한다."""
         return self.metadata_builder(chunks)
 
     async def __call__(self, request, file_path: str, **params):
