@@ -26,6 +26,15 @@ class DocumentProcessor:
                 with open(strategy_path, encoding="utf-8") as f:
                     layout_config.update(yaml.safe_load(f) or {})
 
+        # ocr.type이 있으면 resource/<type>.yaml(전략별 세부 설정)을 읽어 병합한다.
+        ocr_config = dict(config.get("ocr") or {})
+        ocr_type = ocr_config.get("type")
+        if ocr_type:
+            strategy_path = CONFIG_PATH.parent / f"{ocr_type}.yaml"
+            if strategy_path.exists():
+                with open(strategy_path, encoding="utf-8") as f:
+                    ocr_config.update(yaml.safe_load(f) or {})
+
         # loader는 확장자별 loader.<ext>.<이름> 모듈의 Loader 클래스를 쓴다 (예: loader.pdf.pymupdf).
         # 없으면 converter.<이름>의 Loader로 대체한다 (예: libreoffice로 pdf 변환 후 로드).
         # 둘 다 없는 확장자/전략은 건너뛴다.
@@ -38,7 +47,7 @@ class DocumentProcessor:
                     loader_module = importlib.import_module(f"converter.{name}")
                 except ModuleNotFoundError:
                     continue
-            self.loader[ext] = loader_module.Loader(layout_config)
+            self.loader[ext] = loader_module.Loader(layout_config, ocr_config)
 
         self.chunker = importlib.import_module(f"chunker.{config['chunker']['type']}").Chunker(
             chunk_size=config["chunker"]["chunk_size"],

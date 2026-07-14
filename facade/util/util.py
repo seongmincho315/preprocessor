@@ -2,7 +2,7 @@
 # https://github.com/docling-project/docling-core/blob/main/docling_core/types/doc/labels.py
 import zipfile
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 from pypdf import PdfReader, PdfWriter
 
@@ -94,3 +94,28 @@ def file_split(file_path: str, max_page_split: int, base_dir: Path) -> List[str]
         split_paths.append(str(split_path))
 
     return split_paths
+
+
+# 폰트 인코딩이 깨져 유니코드로 매핑되지 않은 글리프는 대체 문자(U+FFFD)나
+# 전용 영역(Private Use Area) 코드포인트로 추출된다. 텍스트 레이어가 있어도
+# 이런 문자가 많으면 실제로는 읽을 수 없는 텍스트이므로 OCR로 대체해야 한다.
+_BAD_CHAR_RANGES = (
+    (0xFFFD, 0xFFFD),
+    (0xE000, 0xF8FF),
+    (0xF0000, 0xFFFFD),
+    (0x100000, 0x10FFFD),
+)
+
+
+def _count_bad_chars(text: str) -> int:
+    return sum(
+        1 for ch in text if any(lo <= ord(ch) <= hi for lo, hi in _BAD_CHAR_RANGES)
+    )
+
+
+def has_glyph_corruption(
+    lines: List[Tuple[str, Tuple[float, float, float, float], float]],
+    threshold: int = 3,
+) -> bool:
+    """페이지의 줄들에서 매핑되지 않은 글리프 문자 수가 threshold를 넘으면 True."""
+    return sum(_count_bad_chars(text) for text, _, _ in lines) > threshold

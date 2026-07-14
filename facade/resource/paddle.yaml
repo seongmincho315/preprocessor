@@ -1,0 +1,5 @@
+# 로컬 개발용 NodePort. 클러스터 안에서 preprocessor를 띄울 땐
+# http://doc-parser-ocr-service.llmops.svc.cluster.local:8080 로 바꿀 것.
+url: http://localhost:30880
+api_key: ~
+timeout: 60

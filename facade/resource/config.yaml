@@ -7,7 +7,11 @@ layout:
 
 ocr:
   type: paddle
-  # config: /app/resource/<이름>.yaml 
+  # config: /app/resource/<이름>.yaml
+  mode: auto # auto | force | disable
+  # auto: 텍스트 레이어가 없거나(스캔 페이지) 글리프가 깨진 페이지만 OCR
+  # force: 모든 페이지를 무조건 OCR
+  # disable: OCR 호출 안 함
 
 
 ext:
