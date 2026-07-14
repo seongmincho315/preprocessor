@@ -8,6 +8,13 @@
 :mod:`custom_preprocessor`\ 를 처음부터 다시 만든다고 생각하고, 한 단계씩 따라가며
 ``BaseProcessor``\ 를 상속해 나만의 전처리기를 만드는 법을 설명한다.
 
+완성된 전체 코드는 다음과 같다 (아래 단계별 설명은 이 코드를 어떻게, 왜
+이렇게 짰는지 하나씩 뜯어본다):
+
+.. literalinclude:: ../facade/custom_preprocessor.py
+   :language: python
+   :linenos:
+
 1. 조합을 정한다
 -----------------
 
