@@ -1,3 +1,6 @@
+"""파일 형식 판별, PDF 페이지 분할, 레이아웃 카테고리 목록, 글리프 손상 감지 등
+여러 모듈에서 공통으로 쓰는 유틸리티 함수 모음."""
+
 # docling_core.types.doc.labels.DocItemLabel 값 목록
 # https://github.com/docling-project/docling-core/blob/main/docling_core/types/doc/labels.py
 import zipfile
@@ -42,7 +45,17 @@ CATEGORIES = [
 
 def get_ext(file_path: str) -> str:
     """파일 이름의 확장자가 아니라, 파일 시그니처(매직 바이트)로 실제 형식을 판별해 반환한다.
-    사용자가 pdf 파일의 확장자를 .txt 등으로 바꿔서 올리는 경우를 대비한 것."""
+    사용자가 pdf 파일의 확장자를 .txt 등으로 바꿔서 올리는 경우를 대비한 것.
+
+    Args:
+        file_path: 형식을 판별할 파일 경로.
+
+    Returns:
+        ``"pdf"``, ``"docx"``, ``"hwpx"``, ``"html"`` 중 하나.
+
+    Raises:
+        ValueError: 알 수 없는 zip 기반 형식이거나, 지원하지 않는 파일 형식일 때.
+    """
     with open(file_path, "rb") as f:
         head = f.read(64)
 
@@ -67,7 +80,19 @@ def get_ext(file_path: str) -> str:
 
 def file_split(file_path: str, max_page_split: int, base_dir: Path) -> List[str]:
     """PDF가 max_page_split 페이지를 넘으면 여러 파일로 잘라 경로 목록을 반환한다.
-    저장방식: <base_dir>/<파일이름>/1.pdf, 2.pdf ......"""
+    저장방식: <base_dir>/<파일이름>/1.pdf, 2.pdf ......
+
+    Args:
+        file_path: 원본 PDF 파일 경로.
+        max_page_split: 이 페이지 수를 넘으면 분할한다.
+        base_dir: 분할된 파일을 저장할 상위 디렉터리.
+
+    Returns:
+        처리할 파일 경로 목록. 분할이 필요 없으면 ``[file_path]``.
+
+    Raises:
+        ValueError: PDF가 아닌 파일을 넘겼을 때.
+    """
     ext = get_ext(file_path)
     if ext != "pdf":
         raise ValueError(f"지원하지 않는 파일 형식입니다: {ext}")
@@ -108,6 +133,7 @@ _BAD_CHAR_RANGES = (
 
 
 def _count_bad_chars(text: str) -> int:
+    """text 안에서 :data:`_BAD_CHAR_RANGES`\ 에 속하는 문자 수를 센다."""
     return sum(
         1 for ch in text if any(lo <= ord(ch) <= hi for lo, hi in _BAD_CHAR_RANGES)
     )
@@ -117,5 +143,13 @@ def has_glyph_corruption(
     lines: List[Tuple[str, Tuple[float, float, float, float], float]],
     threshold: int = 3,
 ) -> bool:
-    """페이지의 줄들에서 매핑되지 않은 글리프 문자 수가 threshold를 넘으면 True."""
+    """페이지의 줄들에서 매핑되지 않은 글리프 문자 수가 threshold를 넘으면 True.
+
+    Args:
+        lines: ``(text, bbox, font_size)`` 튜플 목록(로더가 뽑은 한 페이지 분량).
+        threshold: 이 값을 초과하는 글리프 손상 문자 수가 나오면 손상으로 판단한다.
+
+    Returns:
+        글리프 손상 문자 수가 ``threshold``\ 를 초과하면 ``True``.
+    """
     return sum(_count_bad_chars(text) for text, _, _ in lines) > threshold

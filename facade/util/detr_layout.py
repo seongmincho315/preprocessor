@@ -9,11 +9,26 @@ from util.util import CATEGORIES
 
 
 class DetrLayout:
-    """페이지 이미지를 detr 서버 `/detect`로 보내 감지된 region으로 각 줄의 category를 매긴다."""
+    """페이지 이미지를 detr 서버 `/detect`\ 로 보내 감지된 region으로 각 줄의 category를 매긴다.
+
+    Attributes:
+        url (str): detr 서버 base URL.
+        image_dpi (int): 페이지 이미지를 렌더링한 DPI(줄 bbox와 스케일을 맞추는 데 쓰임).
+        timeout (int): HTTP 요청 타임아웃(초).
+    """
 
     NEEDS_IMAGE = True
+    """항상 ``True`` — 이 전략은 페이지 이미지가 반드시 필요하다."""
 
     def __init__(self, config: dict = None):
+        """
+        Args:
+            config: ``url``, ``image_dpi``, ``timeout``\ 을 담은 설정 dict
+                (예: ``resource/detr.yaml`` 내용).
+
+        Raises:
+            ValueError: ``config``\ 에 ``url``\ 이 없을 때.
+        """
         config = config or {}
         self.url = config.get("url")
         if not self.url:
@@ -26,6 +41,15 @@ class DetrLayout:
         lines: List[Tuple[str, Tuple[float, float, float, float], float]],
         image: Optional[bytes] = None,
     ) -> List[str]:
+        """줄마다 카테고리를 매긴다.
+
+        Args:
+            lines: ``(text, bbox, font_size)`` 튜플 목록.
+            image: 페이지 이미지(PNG bytes). ``None``\ 이면 모든 줄을 ``"text"``\ 로 취급한다.
+
+        Returns:
+            ``lines``\ 와 같은 길이의 카테고리 문자열 목록.
+        """
         if not lines:
             return []
         if image is None:
@@ -41,6 +65,14 @@ class DetrLayout:
         return [self._match_category(bbox, regions) for _, bbox, _ in lines]
 
     def _detect(self, image: bytes) -> List[dict]:
+        """detr 서버 ``/detect``\ 를 호출해 이미지 하나의 감지 region 목록을 받는다.
+
+        Args:
+            image: 페이지 이미지(PNG bytes).
+
+        Returns:
+            ``{"label", "confidence", "l", "t", "r", "b"}`` 형태의 region 목록.
+        """
         payload = json.dumps({"images": [base64.b64encode(image).decode("ascii")]}).encode("utf-8")
         req = urllib.request.Request(
             self.url.rstrip("/") + "/detect",
@@ -54,6 +86,15 @@ class DetrLayout:
 
     @staticmethod
     def _match_category(bbox: Tuple[float, float, float, float], regions: List[dict]) -> str:
+        """줄의 bbox 중심점을 포함하는 region 중 가장 작은 것의 카테고리를 고른다.
+
+        Args:
+            bbox: 줄의 ``(x0, y0, x1, y1)``.
+            regions: :meth:`_detect`\ 가 반환한 region 목록(스케일 보정 완료).
+
+        Returns:
+            매칭되는 region이 없으면 ``"text"``, 있으면 :meth:`_to_category` 결과.
+        """
         x0, y0, x1, y1 = bbox
         cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
         candidates = [r for r in regions if r["l"] <= cx <= r["r"] and r["t"] <= cy <= r["b"]]
@@ -64,5 +105,13 @@ class DetrLayout:
 
     @staticmethod
     def _to_category(label: str) -> str:
+        """detr region label을 :data:`util.util.CATEGORIES` 값으로 정규화한다.
+
+        Args:
+            label: detr이 반환한 원본 label 문자열(예: ``"Section Header"``).
+
+        Returns:
+            ``CATEGORIES``\ 에 속하는 정규화된 카테고리, 없으면 ``"text"``.
+        """
         key = label.lower().replace(" ", "_").replace("-", "_")
         return key if key in CATEGORIES else "text"
