@@ -95,7 +95,10 @@ class BaseLoader(ABC):
             from util.detr_layout import DetrLayout
 
             return DetrLayout(self.layout_config)
-        # TODO: dots_mocr이면 그에 맞는 Layout 구현으로 분기
+        if layout_type == "dots_mocr":
+            from util.dots_mocr_layout import DotsMocrLayout
+
+            return DotsMocrLayout(self.layout_config)
         return Layout(self.layout_config)
 
     def get_ocr(self):

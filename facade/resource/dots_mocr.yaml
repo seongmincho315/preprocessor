@@ -1,4 +1,10 @@
+# dots.ocr/dots.mocr(rednote-hilab)을 서빙하는 OpenAI 호환 chat completions 엔드포인트.
+# 예: vLLM으로 띄운 서버라면 http://<host>:<port>/v1/chat/completions
 url: ~
 api_key: ~
 batch_size: 64
+# batch_size는 아직 미사용 — detr와 동일하게 현재는 페이지당 1장씩 호출한다.
+timeout: 60
+# ~(null)이면 util/dots_mocr_layout.py의 DEFAULT_PROMPT(dots.ocr 공식 레이아웃 프롬프트)를 쓴다.
 prompt: ~
+max_tokens: 24000
