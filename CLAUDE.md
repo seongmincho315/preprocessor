@@ -46,6 +46,41 @@
 - ./facade/config.yaml 로 ./facade/preprocessor.py 초기화
 - ./sample/*
 
+### 로컬 실행
+```bash
+uv sync  # pyproject.toml에 default-groups 설정이 없어 dev 그룹(pytest 등)도 기본 포함됨
+source .venv/bin/activate
+
+# 네트워크/외부 파드 없이 도는 순수 로직 테스트
+pytest -m unit
+
+# 로컬 detr(:30881)/paddle(:30880) 파드 있어야 동작, 없으면 자동 skip
+pytest -m integration
+pytest -m regression
+```
+
+샘플 문서 하나를 직접 파싱해보려면 (`facade/resource/config.yaml`의 `layout.type`/`ocr.type`
+기본값이 `detr`/`paddle`라 해당 파드가 떠 있어야 함. 파드 없이 로컬에서만 확인하고 싶으면
+`layout.type: rule`, `ocr.mode: disable`로 바꿔서 실행):
+```bash
+python -c "
+import sys; sys.path.insert(0, 'facade')
+from preprocessor import DocumentProcessor
+
+processor = DocumentProcessor()
+file_paths = processor.file_handling('sample/pdf/long(eng)/Information Theory.pdf')
+items = processor.load(file_paths)
+items = processor.pre_enrich(processor.preprocess(items))
+chunks = processor.chunking(items)
+chunks = processor.post_enrich(processor.postprocess(chunks))
+vectors = processor.build_metadata(chunks, file_paths[0])
+print(len(vectors))
+"
+```
+- `main.py`(FastAPI 서빙 엔트리)는 `logger`/`utils`/`config`/`common.*`/`util.minio_resource` 등
+  GenOS 이미지 안에서만 주입되는 모듈에 의존하므로 로컬에서 바로 실행 불가 — 로컬 확인은
+  항상 `facade/preprocessor.py`의 `DocumentProcessor`를 직접 호출하는 방식으로 한다.
+
 ## 실제 사용
 - 이미지 빌드(./build-script 참고)
 - Genos에서 ./facade/preprocessor.py 를 로드: ./main.py참고
