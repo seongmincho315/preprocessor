@@ -17,56 +17,62 @@ class Chunker(BaseChunker):
             items: 로더가 반환한 ``{text, category, bbox, page}`` 아이템 목록.
 
         Returns:
-            ``{text, i_page, e_page}`` 청크 목록. ``i_page``/``e_page`` 는 그
-            청크가 속한 섹션(헤딩+본문)이 걸쳐 있는 페이지 범위다.
+            ``{text, i_page, e_page, bboxes}`` 청크 목록. ``i_page``/``e_page`` 는
+            그 청크가 속한 섹션(헤딩+본문)이 걸쳐 있는 페이지 범위, ``bboxes`` 는
+            그 섹션을 이룬 아이템들의 ``{page, bbox}`` 목록(뷰어에서 원문 위치
+            강조에 씀)이다.
         """
         chunks = []
-        for heading, heading_page, body_items in self._group_by_section(items):
+        for heading_item, body_items in self._group_by_section(items):
+            heading = heading_item["text"] if heading_item else None
             body_text = "\n".join(item["text"] for item in body_items)
             section_text = self._render(heading, body_text)
             if not section_text:
                 continue
 
+            section_items = ([heading_item] if heading_item else []) + body_items
             # 섹션(헤딩+본문 전체)이 걸쳐 있는 페이지 범위. chunk_size로 쪼갠 조각들도
             # 정확한 글자 단위 페이지 추적 대신 이 섹션 범위를 그대로 물려받는다(근사치).
-            pages = [item["page"] for item in body_items]
-            if heading_page is not None:
-                pages.append(heading_page)
+            pages = [item["page"] for item in section_items]
             i_page, e_page = min(pages), max(pages)
+            # bbox도 페이지 범위와 동일한 근사치 원칙 — 쪼갠 조각들도 섹션 전체의
+            # bbox 목록을 그대로 물려받는다(어느 조각이 어느 bbox인지까지는 안 나눔).
+            bboxes = [{"page": item["page"], "bbox": item.get("bbox")} for item in section_items]
 
             if not self.chunk_size:
-                chunks.append({"text": section_text, "i_page": i_page, "e_page": e_page})
+                chunks.append({"text": section_text, "i_page": i_page, "e_page": e_page, "bboxes": bboxes})
                 continue
 
             chunks.extend(
-                {"text": text, "i_page": i_page, "e_page": e_page}
+                {"text": text, "i_page": i_page, "e_page": e_page, "bboxes": bboxes}
                 for text in self._split_with_heading(heading, body_text, self.chunk_size, self.chunk_overlap)
             )
 
         return chunks
 
     @staticmethod
-    def _group_by_section(items: List[dict]) -> List[Tuple[Optional[str], Optional[int], List[dict]]]:
-        """category가 section_header인 아이템을 기준으로 (heading, heading_page, body_items) 목록을 만든다.
+    def _group_by_section(items: List[dict]) -> List[Tuple[Optional[dict], List[dict]]]:
+        """category가 section_header인 아이템을 기준으로 (heading_item, body_items) 목록을 만든다.
 
         Args:
             items: 원본 아이템 목록.
 
         Returns:
-            ``(heading, heading_page, body_items)`` 튜플 목록. 첫 section_header
-            이전에 나온 아이템은 ``heading=None`` 인 섹션으로 묶인다.
+            ``(heading_item, body_items)`` 튜플 목록. ``heading_item`` 은 헤딩
+            아이템 자체(``text``/``page``/``bbox`` 포함)이고, 첫 section_header
+            이전에 나온 아이템은 ``heading_item=None`` 인 섹션으로 묶인다.
         """
         sections = []
-        heading, heading_page, body = None, None, []
+        heading_item, body = None, []
         for item in items:
             if item.get("category") == "section_header":
-                if heading is not None or body:
-                    sections.append((heading, heading_page, body))
-                heading, heading_page, body = item["text"], item["page"], []
+                if heading_item is not None or body:
+                    sections.append((heading_item, body))
+                heading_item, body = item, []
             else:
                 body.append(item)
-        if heading is not None or body:
-            sections.append((heading, heading_page, body))
+        if heading_item is not None or body:
+            sections.append((heading_item, body))
         return sections
 
     @classmethod

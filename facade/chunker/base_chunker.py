@@ -56,5 +56,6 @@ class BaseChunker(ABC):
     @abstractmethod
     def __call__(self, items: List[dict]) -> List[dict]:
         """로더가 반환한 ``{text, category, bbox, page}`` 아이템 목록을
-        ``{text, i_page, e_page}`` 청크 목록으로 변환한다."""
+        ``{text, i_page, e_page}`` 청크 목록으로 변환한다. ``bboxes``
+        (구성 아이템의 ``{page, bbox}`` 목록)는 지원하는 청커만 덧붙인다."""
         raise NotImplementedError
