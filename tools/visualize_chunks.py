@@ -238,15 +238,11 @@ function selectChunk(idx) {{
   render();
 }}
 
-function render() {{
-  const pageNo = pageNos[pageIdx];
-  pageImgEl.src = 'data:image/png;base64,' + PAGE_IMAGES[pageNo];
-  indicatorEl.textContent = `${{pageIdx + 1}} / ${{pageNos.length}} (p.${{pageNo}})`;
-  prevBtn.disabled = pageIdx === 0;
-  nextBtn.disabled = pageIdx === pageNos.length - 1;
-
-  // 이 페이지에 걸린 청크들의 bbox를 항상 그리되(카테고리 단위), 같은 청크는 같은 색으로 칠한다.
-  // 선택된 청크만 굵게/밝게 강조.
+// bbox는 렌더링한 PNG의 실제 픽셀 좌표인데, <img>는 CSS(max-width:100%)로 화면에 맞게
+// 축소돼 표시되므로, "표시된 크기 / 원본 픽셀 크기" 비율을 곱해줘야 오버레이가 이미지 위에
+// 정확히 겹친다(안 곱하면 페이지 아래로 갈수록 오차가 누적돼 어긋난다).
+function drawBoxes(pageNo) {{
+  const displayScale = pageImgEl.clientWidth / pageImgEl.naturalWidth;
   pageEl.querySelectorAll('.bbox').forEach(el => el.remove());
   const onPage = chunksOnPage(pageNo);
   for (const chunk of onPage) {{
@@ -254,10 +250,10 @@ function render() {{
       if (box.page !== pageNo) continue;
       const el = document.createElement('div');
       el.className = 'bbox' + (chunk.idx === selectedChunkIdx ? ' selected' : '');
-      el.style.left = box.l + 'px';
-      el.style.top = box.t + 'px';
-      el.style.width = box.w + 'px';
-      el.style.height = box.h + 'px';
+      el.style.left = (box.l * displayScale) + 'px';
+      el.style.top = (box.t * displayScale) + 'px';
+      el.style.width = (box.w * displayScale) + 'px';
+      el.style.height = (box.h * displayScale) + 'px';
       el.style.borderColor = chunk.color;
       el.style.background = chunk.color + '33';
       el.title = '청크 #' + (chunk.idx + 1);
@@ -265,7 +261,17 @@ function render() {{
       pageEl.appendChild(el);
     }}
   }}
+}}
 
+function render() {{
+  const pageNo = pageNos[pageIdx];
+  pageImgEl.onload = () => drawBoxes(pageNo);
+  pageImgEl.src = 'data:image/png;base64,' + PAGE_IMAGES[pageNo];
+  indicatorEl.textContent = `${{pageIdx + 1}} / ${{pageNos.length}} (p.${{pageNo}})`;
+  prevBtn.disabled = pageIdx === 0;
+  nextBtn.disabled = pageIdx === pageNos.length - 1;
+
+  const onPage = chunksOnPage(pageNo);
   chunkCountEl.textContent = onPage.length;
   chunkListEl.innerHTML = '';
   for (const chunk of onPage) {{
@@ -291,6 +297,8 @@ document.addEventListener('keydown', (e) => {{
   if (e.key === 'ArrowLeft') prevBtn.click();
   if (e.key === 'ArrowRight') nextBtn.click();
 }});
+// 창 크기가 바뀌면 표시 크기도 바뀌므로 오버레이를 다시 그린다
+window.addEventListener('resize', () => drawBoxes(pageNos[pageIdx]));
 
 render();
 </script>
