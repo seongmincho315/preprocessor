@@ -28,6 +28,10 @@ class Loader(BaseLoader):
         finally:
             doc.close()
 
+    #: span 사이 가로 간격이 (두 span 폰트 크기 평균) * 이 값보다 크면, 원본에서
+    #: 띄어져 있던 것으로 보고 공백을 끼워 넣는다.
+    SPACE_GAP_RATIO = 0.25
+
     @staticmethod
     def _extract_lines(page):
         """페이지의 텍스트를 줄 단위로 (text, bbox, font_size) 목록으로 반환한다.
@@ -37,19 +41,46 @@ class Loader(BaseLoader):
 
         Returns:
             ``(text, (x0, y0, x1, y1), font_size)`` 튜플 목록. bbox는 같은 줄에
-            속한 span들의 좌표 min/max, font_size는 그 줄 첫 span의 크기다.
+            속한 span들의 좌표 min/max, font_size는 그 줄에서 글자 수가 가장 많은
+            span의 크기다(각주 번호처럼 크기가 다른 span이 줄 맨 앞에 와도
+            흔들리지 않도록).
         """
         lines = []
         for block in page.get_text("dict")["blocks"]:
             for line in block.get("lines", []):
                 spans = line.get("spans", [])
-                text = "".join(span["text"] for span in spans).strip()
+                if not spans:
+                    continue
+                text = Loader._join_spans(spans).strip()
                 if not text:
                     continue
                 x0 = min(span["bbox"][0] for span in spans)
                 y0 = min(span["bbox"][1] for span in spans)
                 x1 = max(span["bbox"][2] for span in spans)
                 y1 = max(span["bbox"][3] for span in spans)
-                font_size = spans[0]["size"]
+                font_size = Loader._dominant_font_size(spans)
                 lines.append((text, (x0, y0, x1, y1), font_size))
         return lines
+
+    @staticmethod
+    def _dominant_font_size(spans) -> float:
+        """줄 안에서 글자 수가 가장 많은 span의 폰트 크기를 그 줄의 대표 크기로 쓴다."""
+        totals = {}
+        for span in spans:
+            totals[span["size"]] = totals.get(span["size"], 0) + len(span["text"])
+        return max(totals, key=totals.get)
+
+    @staticmethod
+    def _join_spans(spans) -> str:
+        """볼드/색상 등으로 같은 줄 안에서 span이 나뉜 경우, span 사이 가로 간격을
+        보고 원본에 있었을 공백을 복원해서 이어붙인다. PyMuPDF가 span을 나눌 때
+        그 사이의 공백 문자를 아무 span에도 포함시키지 않는 경우가 있어서, 그냥
+        이어붙이면 "단어단어"처럼 붙어버릴 수 있다."""
+        parts = [spans[0]["text"]]
+        for prev, span in zip(spans, spans[1:]):
+            gap = span["bbox"][0] - prev["bbox"][2]
+            threshold = (prev["size"] + span["size"]) / 2 * Loader.SPACE_GAP_RATIO
+            if gap > threshold and not parts[-1].endswith(" ") and not span["text"].startswith(" "):
+                parts.append(" ")
+            parts.append(span["text"])
+        return "".join(parts)

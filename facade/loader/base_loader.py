@@ -8,6 +8,8 @@
 from abc import ABC, abstractmethod
 from typing import Iterable, List, Optional, Tuple
 
+from util.header_footer import strip_repeated_headers_footers
+from util.reading_order import reorder_by_category
 from util.rule_layout import Layout
 from util.util import has_glyph_corruption
 
@@ -56,7 +58,15 @@ class BaseLoader(ABC):
         """파일 하나를 읽어 아이템 목록으로 반환한다.
 
         페이지마다 텍스트 줄을 추출하고, :meth:`_needs_ocr` 판단에 따라 OCR로
-        대체한 뒤, 레이아웃 전략을 호출한다. 레이아웃 전략은 두 계약 중 하나를 따른다:
+        대체한 뒤, 레이아웃 전략을 호출해 카테고리를 매긴다. 다단(2단/3단)
+        레이아웃이면, 카테고리 중 본문 흐름(text/section_header 등)에 속하는
+        줄만 실제로 읽는 순서로 재정렬한다(:func:`~util.reading_order.reorder_by_category`).
+        formula/table/page_header 등은 재정렬하지 않고 원래 순서를 그대로 두는데,
+        PyMuPDF가 수식 한 줄을 여러 조각으로 쪼개서 주는 경우가 많아 카테고리 없이
+        기하학적으로만 재정렬하면 오히려 순서가 깨지기 때문이다. 마지막으로 여러
+        페이지에 반복되는 머리말/꼬리말을 제거한다
+        (:func:`~util.header_footer.strip_repeated_headers_footers`).
+        레이아웃 전략은 두 계약 중 하나를 따른다:
 
         - 기본(``rule``/``detr``/``dots_mocr`` 등): ``lines`` 와 같은 길이의 카테고리
           문자열 목록을 반환하고, 이 메서드가 ``lines`` 와 zip해 아이템을 조립한다.
@@ -80,6 +90,7 @@ class BaseLoader(ABC):
                 for item in result:
                     items.append({**item, "page": page_no})
             else:
+                lines, result = reorder_by_category(lines, result)
                 for (text, bbox, font_size), category in zip(lines, result):
                     items.append(
                         {
@@ -89,7 +100,7 @@ class BaseLoader(ABC):
                             "page": page_no,
                         }
                     )
-        return items
+        return strip_repeated_headers_footers(items)
 
     def _needs_ocr(self, lines: List[Tuple[str, Tuple[float, float, float, float], float]]) -> bool:
         """ocr.mode(auto|force|disable)에 따라 이 페이지를 OCR로 다시 뽑아야 하는지 판단한다.
