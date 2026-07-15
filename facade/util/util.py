@@ -151,3 +151,20 @@ def has_glyph_corruption(
         글리프 손상 문자 수가 ``threshold`` 를 초과하면 ``True``.
     """
     return sum(_count_bad_chars(text) for text, _, _ in lines) > threshold
+
+
+def is_glyph_corrupted(text: str, threshold: int = 1) -> bool:
+    """줄 하나의 텍스트에 매핑되지 않은 글리프 문자가 threshold개 이상이면 True.
+
+    :func:`has_glyph_corruption` 은 페이지 전체를 한 번에 판단해 OCR로 통째로 대체할지
+    정하는 용도고, 이 함수는 줄 단위로 판단해 그 줄만 개별적으로 재추출할지 정하는 용도다
+    (예: ``util.dots_mocr_auto_layout`` 이 글리프 깨진 줄만 골라 grounding OCR로 재추출).
+
+    Args:
+        text: 판단할 줄 하나의 텍스트.
+        threshold: 이 값 이상의 글리프 손상 문자가 있으면 손상으로 판단한다.
+
+    Returns:
+        글리프 손상 문자 수가 ``threshold`` 이상이면 ``True``.
+    """
+    return _count_bad_chars(text) >= threshold

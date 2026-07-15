@@ -10,12 +10,16 @@ model: ~
 batch_size: 64
 # batch_size는 아직 미사용 — detr와 동일하게 현재는 페이지당 1장씩 호출한다.
 timeout: 60
-# ~(null)이면 util/dots_mocr_layout.py의 DEFAULT_PROMPT(dots.ocr 공식 prompt_layout_only_en)를 쓴다.
+# ~(null)이면 util/dots_mocr_all_layout.py의 DEFAULT_PROMPT(dots.ocr 공식 prompt_layout_all_en,
+# genonai/doc_parser 프로덕션 기본값과 동일)를 쓴다.
 prompt: ~
+# 텍스트까지 한 번에 뽑으니 dots_mocr(layout_only)보다 응답이 길어질 수 있다. 페이지에 텍스트가
+# 아주 많으면(스캔 논문/신문 등) 늘려야 할 수 있음 - genonai/doc_parser 프로덕션 기준값 그대로.
 max_completion_tokens: 16384
 temperature: 0.1
 top_p: 0.9
 # 반복(degeneration) 억제. None으로 비우면 payload에서 아예 뺀다(모든 서버가 지원하진 않음).
+# 텍스트 생성이 토큰 상한까지 폭주하는 현상(genonai/doc_parser가 실제로 겪음)을 줄이는 역할.
 repetition_penalty: 1.15
 # GenOS llmops 게이트웨이처럼 채팅 템플릿을 자동 적용하지 않는 서버로 서빙할 때만 설정.
 # genonai/doc_parser 기준 값은 "<|img|><|imgpad|><|endofimg|>". 표준 OpenAI 호환 서버는 비워둔다.

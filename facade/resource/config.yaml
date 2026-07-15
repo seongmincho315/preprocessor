@@ -2,8 +2,13 @@ max_page_split: 50
 
 # pdf 레이아웃 분석
 layout:
-  type: detr # rule | detr | dots_mocr
+  type: detr # rule | detr | dots_mocr | dots_mocr_all | dots_mocr_grounding | dots_mocr_auto
   # type이 rule이 아니면 resource/<type>.yaml을 읽어 아래 설정과 병합한다
+  # dots_mocr 계열은 텍스트 소스가 다른 4가지 변형(resource/README.md의 dots_mocr 섹션 참고):
+  #   dots_mocr           - bbox/category만 감지, 텍스트는 PDF/OCR 그대로 (가장 저렴)
+  #   dots_mocr_all       - bbox/category/text를 한 번에 추출 (PDF 텍스트를 아예 안 씀)
+  #   dots_mocr_grounding - bbox/category 감지 후 region마다 grounding OCR로 텍스트 추출
+  #   dots_mocr_auto      - dots_mocr와 동일하되, 글리프 깨진 줄만 grounding OCR로 재추출
 
 ocr:
   type: paddle

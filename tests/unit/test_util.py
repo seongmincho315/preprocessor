@@ -3,7 +3,7 @@ from pathlib import Path
 import fitz
 import pytest
 
-from util.util import file_split, get_ext, has_glyph_corruption
+from util.util import file_split, get_ext, has_glyph_corruption, is_glyph_corrupted
 
 pytestmark = pytest.mark.unit
 
@@ -81,3 +81,22 @@ class TestHasGlyphCorruption:
 
     def test_empty_lines_not_flagged(self):
         assert has_glyph_corruption([]) is False
+
+
+class TestIsGlyphCorrupted:
+    def test_clean_text_not_flagged(self):
+        assert is_glyph_corrupted("hello world") is False
+
+    def test_single_bad_char_flagged_at_default_threshold(self):
+        # has_glyph_corruption과 달리 줄 단위 threshold 기본값은 1(>=)이라 하나만 있어도 감지된다.
+        assert is_glyph_corrupted(REPLACEMENT_CHAR + " ok") is True
+
+    def test_private_use_area_char_flagged(self):
+        assert is_glyph_corrupted(PUA_CHAR + " ok") is True
+
+    def test_empty_text_not_flagged(self):
+        assert is_glyph_corrupted("") is False
+
+    def test_custom_threshold_respected(self):
+        assert is_glyph_corrupted(REPLACEMENT_CHAR * 2, threshold=3) is False
+        assert is_glyph_corrupted(REPLACEMENT_CHAR * 3, threshold=3) is True

@@ -56,7 +56,14 @@ class BaseLoader(ABC):
         """파일 하나를 읽어 아이템 목록으로 반환한다.
 
         페이지마다 텍스트 줄을 추출하고, :meth:`_needs_ocr` 판단에 따라 OCR로
-        대체한 뒤, 레이아웃 전략으로 줄마다 카테고리를 매긴다.
+        대체한 뒤, 레이아웃 전략을 호출한다. 레이아웃 전략은 두 계약 중 하나를 따른다:
+
+        - 기본(``rule``/``detr``/``dots_mocr`` 등): ``lines`` 와 같은 길이의 카테고리
+          문자열 목록을 반환하고, 이 메서드가 ``lines`` 와 zip해 아이템을 조립한다.
+        - ``PRODUCES_ITEMS = True`` 인 전략(예: ``dots_mocr_all``/``dots_mocr_grounding``/
+          ``dots_mocr_auto``): ``{"text","category","bbox"}`` 아이템 목록을 직접 반환하고,
+          이 메서드는 그걸 그대로 쓴다(자체적으로 텍스트를 추출/오버라이드하는 전략이라
+          ``lines`` 와의 위치 매칭이 성립하지 않기 때문).
 
         Args:
             file_path: 읽을 파일 경로.
@@ -68,16 +75,20 @@ class BaseLoader(ABC):
         for page_no, (lines, image) in enumerate(self._extract_pages(file_path), start=1):
             if image is not None and self.ocr is not None and self._needs_ocr(lines):
                 lines = self.ocr(image, dpi=self.image_dpi)
-            categories = self.layout(lines, image=image)
-            for (text, bbox, font_size), category in zip(lines, categories):
-                items.append(
-                    {
-                        "text": text,
-                        "category": category,
-                        "bbox": {"x0": bbox[0], "y0": bbox[1], "x1": bbox[2], "y1": bbox[3]},
-                        "page": page_no,
-                    }
-                )
+            result = self.layout(lines, image=image)
+            if getattr(self.layout, "PRODUCES_ITEMS", False):
+                for item in result:
+                    items.append({**item, "page": page_no})
+            else:
+                for (text, bbox, font_size), category in zip(lines, result):
+                    items.append(
+                        {
+                            "text": text,
+                            "category": category,
+                            "bbox": {"x0": bbox[0], "y0": bbox[1], "x1": bbox[2], "y1": bbox[3]},
+                            "page": page_no,
+                        }
+                    )
         return items
 
     def _needs_ocr(self, lines: List[Tuple[str, Tuple[float, float, float, float], float]]) -> bool:
@@ -99,6 +110,18 @@ class BaseLoader(ABC):
             from util.dots_mocr_layout import DotsMocrLayout
 
             return DotsMocrLayout(self.layout_config)
+        if layout_type == "dots_mocr_all":
+            from util.dots_mocr_all_layout import DotsMocrAllLayout
+
+            return DotsMocrAllLayout(self.layout_config)
+        if layout_type == "dots_mocr_grounding":
+            from util.dots_mocr_grounding_layout import DotsMocrGroundingLayout
+
+            return DotsMocrGroundingLayout(self.layout_config)
+        if layout_type == "dots_mocr_auto":
+            from util.dots_mocr_auto_layout import DotsMocrAutoLayout
+
+            return DotsMocrAutoLayout(self.layout_config)
         return Layout(self.layout_config)
 
     def get_ocr(self):

@@ -8,11 +8,14 @@ api_key: ~
 # 기준), 직접 vLLM으로 HF 리포를 서빙하면 그 리포 id(예: "rednote-hilab/dots.ocr").
 model: ~
 batch_size: 64
-# batch_size는 아직 미사용 — detr와 동일하게 현재는 페이지당 1장씩 호출한다.
+# batch_size는 아직 미사용 — detr와 동일하게 현재는 페이지당 1장씩 호출한다(단, 글리프 깨진
+# 줄이 있으면 그 줄 개수만큼 grounding OCR 호출이 추가로 나간다).
 timeout: 60
-# ~(null)이면 util/dots_mocr_layout.py의 DEFAULT_PROMPT(dots.ocr 공식 prompt_layout_only_en)를 쓴다.
+# 감지(1차 호출) 프롬프트. ~(null)이면 util/dots_mocr_auto_layout.py의 DEFAULT_PROMPT
+# (dots.ocr 공식 prompt_layout_only_en)를 쓴다. 글리프 깨진 줄의 텍스트 재추출(2차 호출)은
+# 항상 공식 prompt_grounding_ocr을 쓰며 오버라이드할 수 없다.
 prompt: ~
-max_completion_tokens: 16384
+max_completion_tokens: 4096
 temperature: 0.1
 top_p: 0.9
 # 반복(degeneration) 억제. None으로 비우면 payload에서 아예 뺀다(모든 서버가 지원하진 않음).
