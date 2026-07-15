@@ -19,6 +19,20 @@
    레이어가 없거나 글리프가 깨진 페이지만, ``force``\ 는 전부, ``disable``\ 은
    전혀 호출하지 않는다.
 
+확장자별 로더
+--------------
+
+``ext.<확장자>``\ 로 선택되는 로더는 확장자마다 별도 구현체다 - 자세한
+건 아래 문서를 참고:
+
+.. toctree::
+   :maxdepth: 1
+
+   facade_loader_pdf
+   facade_loader_html
+   facade_loader_docx
+   facade_loader_hwpx
+
 더 보기
 -------
 
