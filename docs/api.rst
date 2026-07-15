@@ -13,6 +13,7 @@ API 레퍼런스
    loader.pdf.pypdf
    loader.html.bs4
    converter.libreoffice
+   converter.rhwp
    chunker.base_chunker
    chunker.smart_chunker
    chunker.hierarchical_chunker

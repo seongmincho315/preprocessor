@@ -77,3 +77,17 @@ HTML은 페이지/이미지 개념이 없는 텍스트 네이티브 포맷이라
 설정과 무관하게 레이아웃은 항상 `rule`(폰트 크기 휴리스틱), OCR은 항상 미사용으로
 고정한다. 태그별로 가상 폰트 크기(h1~h6은 크게, 나머지는 본문 크기)를 매겨 `rule`
 레이아웃이 `section_header`/`text`를 구분하게 한다.
+
+### `rhwp` — HWP/HWPX → PDF 변환 컨버터 (`converter/rhwp.py`)
+
+`ext.hwpx: rhwp`로 선택하면 `loader.hwpx.rhwp` 모듈이 없어 `converter.rhwp`로 대체된다.
+설정 파일이 아니라 컨버터 구현체다. `PdfLoader`(`loader/pdf/pymupdf.py`)를 상속해서,
+`rhwp export-pdf <입력> -o <출력.pdf>` CLI로 HWP/HWPX를 PDF로 변환한 뒤 부모의
+pymupdf 추출 로직을 그대로 재사용한다 - 외부 서비스 호출 없이 컨테이너에 설치된
+`rhwp` 바이너리(이미지 빌드 시 Rust로 빌드, `genonai/genos-rhwp`)만 있으면 동작한다.
+
+| Key | Description |
+|---|---|
+| `RHWP_BIN`(환경변수) | `rhwp` 바이너리 경로 override. 기본값은 `/usr/local/bin/rhwp`(이미지 빌드 시 설치되는 경로). |
+
+바이너리가 없거나 변환에 실패하면(`rc != 0` 또는 출력 파일 미생성) `RuntimeError`를 낸다.
