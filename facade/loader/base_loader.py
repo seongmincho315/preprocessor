@@ -9,9 +9,10 @@ from abc import ABC, abstractmethod
 from typing import Iterable, List, Optional, Tuple
 
 from util.header_footer import strip_repeated_headers_footers
+from util.paragraph_merge import merge_split_paragraphs
 from util.reading_order import reorder_by_category
 from util.rule_layout import Layout
-from util.util import has_glyph_corruption
+from util.util import has_glyph_corruption, normalize_typography
 
 OCR_MODES = ("auto", "force", "disable")
 """ocr.mode로 쓸 수 있는 값. auto: 텍스트가 없거나 글리프가 깨진 페이지만 OCR,
@@ -63,9 +64,12 @@ class BaseLoader(ABC):
         줄만 실제로 읽는 순서로 재정렬한다(:func:`~util.reading_order.reorder_by_category`).
         formula/table/page_header 등은 재정렬하지 않고 원래 순서를 그대로 두는데,
         PyMuPDF가 수식 한 줄을 여러 조각으로 쪼개서 주는 경우가 많아 카테고리 없이
-        기하학적으로만 재정렬하면 오히려 순서가 깨지기 때문이다. 마지막으로 여러
-        페이지에 반복되는 머리말/꼬리말을 제거한다
-        (:func:`~util.header_footer.strip_repeated_headers_footers`).
+        기하학적으로만 재정렬하면 오히려 순서가 깨지기 때문이다. 각 줄의 텍스트는
+        타이포그래피 정규화를 거친다(:func:`~util.util.normalize_typography`).
+        마지막으로 여러 페이지에 반복되는 머리말/꼬리말을 제거하고
+        (:func:`~util.header_footer.strip_repeated_headers_footers`), 페이지 경계든
+        같은 페이지 안이든 줄바꿈으로 잘린 문단을 이어붙인다
+        (:func:`~util.paragraph_merge.merge_split_paragraphs`).
         레이아웃 전략은 두 계약 중 하나를 따른다:
 
         - 기본(``rule``/``detr``/``dots_mocr`` 등): ``lines`` 와 같은 길이의 카테고리
@@ -88,19 +92,20 @@ class BaseLoader(ABC):
             result = self.layout(lines, image=image)
             if getattr(self.layout, "PRODUCES_ITEMS", False):
                 for item in result:
-                    items.append({**item, "page": page_no})
+                    items.append({**item, "text": normalize_typography(item.get("text", "")), "page": page_no})
             else:
                 lines, result = reorder_by_category(lines, result)
                 for (text, bbox, font_size), category in zip(lines, result):
                     items.append(
                         {
-                            "text": text,
+                            "text": normalize_typography(text),
                             "category": category,
                             "bbox": {"x0": bbox[0], "y0": bbox[1], "x1": bbox[2], "y1": bbox[3]},
                             "page": page_no,
                         }
                     )
-        return strip_repeated_headers_footers(items)
+        items = strip_repeated_headers_footers(items)
+        return merge_split_paragraphs(items)
 
     def _needs_ocr(self, lines: List[Tuple[str, Tuple[float, float, float, float], float]]) -> bool:
         """ocr.mode(auto|force|disable)에 따라 이 페이지를 OCR로 다시 뽑아야 하는지 판단한다.
