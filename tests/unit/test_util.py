@@ -1,9 +1,10 @@
+import zipfile
 from pathlib import Path
 
 import fitz
 import pytest
 
-from util.util import file_split, get_ext, has_glyph_corruption, is_glyph_corrupted
+from util.util import JPEG_MAGIC, OLE_MAGIC, PNG_MAGIC, file_split, get_ext, has_glyph_corruption, is_glyph_corrupted
 
 pytestmark = pytest.mark.unit
 
@@ -30,6 +31,55 @@ class TestGetExt:
         path.write_bytes(b"not a real document")
         with pytest.raises(ValueError):
             get_ext(str(path))
+
+    def test_png(self, tmp_path):
+        path = tmp_path / "sample.png"
+        path.write_bytes(PNG_MAGIC + b"rest of file")
+        assert get_ext(str(path)) == "png"
+
+    def test_jpeg(self, tmp_path):
+        path = tmp_path / "sample.jpeg"
+        path.write_bytes(JPEG_MAGIC + b"rest of file")
+        assert get_ext(str(path)) == "jpeg"
+
+    def test_ppt(self, tmp_path):
+        path = tmp_path / "sample.ppt"
+        path.write_bytes(OLE_MAGIC + b"rest of file")
+        assert get_ext(str(path)) == "ppt"
+
+    def test_xlsx(self, tmp_path):
+        path = tmp_path / "sample.xlsx"
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("xl/workbook.xml", "<workbook/>")
+        assert get_ext(str(path)) == "xlsx"
+
+    def test_pptx(self, tmp_path):
+        path = tmp_path / "sample.pptx"
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("ppt/presentation.xml", "<presentation/>")
+        assert get_ext(str(path)) == "pptx"
+
+    def test_unknown_zip_format_raises(self, tmp_path):
+        path = tmp_path / "sample.zip"
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("something/else.xml", "<x/>")
+        with pytest.raises(ValueError):
+            get_ext(str(path))
+
+    def test_csv(self, tmp_path):
+        path = tmp_path / "sample.csv"
+        path.write_text("a,b\n1,2\n", encoding="utf-8")
+        assert get_ext(str(path)) == "csv"
+
+    def test_md(self, tmp_path):
+        path = tmp_path / "sample.md"
+        path.write_text("# Title\n", encoding="utf-8")
+        assert get_ext(str(path)) == "md"
+
+    def test_txt(self, tmp_path):
+        path = tmp_path / "sample.txt"
+        path.write_text("plain text", encoding="utf-8")
+        assert get_ext(str(path)) == "txt"
 
 
 class TestFileSplit:

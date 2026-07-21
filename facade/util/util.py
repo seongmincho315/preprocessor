@@ -45,15 +45,27 @@ CATEGORIES = [
 ]
 
 
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+JPEG_MAGIC = b"\xff\xd8\xff"
+#: 레거시 바이너리 오피스 포맷(OLE/CFBF) 공통 시그니처. 이 프로젝트가 지원하는
+#: OLE 기반 포맷은 ppt뿐이라 바로 단정한다 - doc/xls를 추가하게 되면 root storage의
+#: 스트림 이름으로 더 구분해야 한다.
+OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+
+
 def get_ext(file_path: str) -> str:
     """파일 이름의 확장자가 아니라, 파일 시그니처(매직 바이트)로 실제 형식을 판별해 반환한다.
     사용자가 pdf 파일의 확장자를 .txt 등으로 바꿔서 올리는 경우를 대비한 것.
+
+    csv/md/txt는 매직 바이트가 없는 순수 텍스트라 셋을 구분할 신호가 파일 확장자뿐이다 -
+    이 셋에 한해서만 예외적으로 확장자를 본다.
 
     Args:
         file_path: 형식을 판별할 파일 경로.
 
     Returns:
-        ``"pdf"``, ``"docx"``, ``"hwpx"``, ``"html"`` 중 하나.
+        ``"pdf"``, ``"docx"``, ``"hwpx"``, ``"html"``, ``"png"``, ``"jpeg"``, ``"ppt"``,
+        ``"xlsx"``, ``"pptx"``, ``"csv"``, ``"md"``, ``"txt"`` 중 하나.
 
     Raises:
         ValueError: 알 수 없는 zip 기반 형식이거나, 지원하지 않는 파일 형식일 때.
@@ -63,12 +75,22 @@ def get_ext(file_path: str) -> str:
 
     if head.startswith(b"%PDF"):
         return "pdf"
+    if head.startswith(PNG_MAGIC):
+        return "png"
+    if head.startswith(JPEG_MAGIC):
+        return "jpeg"
+    if head.startswith(OLE_MAGIC):
+        return "ppt"
 
     if head.startswith(b"PK\x03\x04"):
         with zipfile.ZipFile(file_path) as zf:
             names = zf.namelist()
         if any(name.startswith("word/") for name in names):
             return "docx"
+        if any(name.startswith("xl/") for name in names):
+            return "xlsx"
+        if any(name.startswith("ppt/") for name in names):
+            return "pptx"
         if any(name.startswith("Contents/") or name == "mimetype" for name in names):
             return "hwpx"
         raise ValueError(f"알 수 없는 zip 기반 파일 형식입니다: {file_path}")
@@ -76,6 +98,14 @@ def get_ext(file_path: str) -> str:
     text_head = head.lstrip(b"\xef\xbb\xbf \t\r\n").lower()
     if text_head.startswith(b"<!doctype html") or text_head.startswith(b"<html"):
         return "html"
+
+    suffix = Path(file_path).suffix.lower()
+    if suffix == ".csv":
+        return "csv"
+    if suffix in (".md", ".markdown"):
+        return "md"
+    if suffix == ".txt":
+        return "txt"
 
     raise ValueError(f"알 수 없는 파일 형식입니다: {file_path}")
 

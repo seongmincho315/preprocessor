@@ -21,9 +21,17 @@ ocr:
 
 ext:
   pdf: pymupdf # pymupdf | pypdf
-  html: bs4 # bs4 | libreoffice 
+  html: bs4 # bs4 | libreoffice
   hwpx: rhwp # rhwp | libreoffice
-  docx: test
+  docx: python_docx
+  csv: stdlib
+  xlsx: openpyxl
+  pptx: libreoffice
+  ppt: libreoffice
+  md: regex
+  txt: plain
+  png: pillow
+  jpeg: pillow
 
 chunker:
   type: smart_chunker # smart_chunker | hierarchical_chunker | hybrid_chunker

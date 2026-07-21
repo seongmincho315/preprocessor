@@ -20,6 +20,11 @@ def facade_dir() -> Path:
 
 
 @pytest.fixture(scope="session")
+def sample_dir() -> Path:
+    return FACADE_DIR.parent / "sample"
+
+
+@pytest.fixture(scope="session")
 def sample_pdf() -> Path:
     path = FACADE_DIR.parent / "sample" / "pdf" / "long(eng)" / "Information Theory.pdf"
     if not path.exists():
