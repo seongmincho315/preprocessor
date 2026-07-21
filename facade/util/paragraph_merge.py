@@ -39,7 +39,11 @@ def merge_split_paragraphs(items: List[dict]) -> List[dict]:
 
     Returns:
         이어붙인 아이템을 하나로 합친 목록. 합쳐진 아이템은 앞쪽 아이템의
-        ``category``/``bbox``/``page``\\ 를 그대로 쓰고 ``text``\\ 만 이어붙인다.
+        ``category``/``page``\\ 를 그대로 쓰고 ``text``\\ 만 이어붙인다. ``bbox``\\ 는
+        같은 페이지 안에서 이어붙인 경우 두 줄의 bbox를 합친 영역(union)으로 넓힌다 -
+        안 그러면 여러 줄로 감싸진 문단의 bbox가 첫 줄 한 줄 크기로만 남아 뷰어 등에서
+        하이라이트가 실제 텍스트보다 훨씬 작게 보인다. 페이지 경계를 넘어 이어붙인
+        경우는 한 bbox로 두 페이지를 표현할 수 없어 앞쪽 페이지의 bbox를 그대로 둔다.
     """
     if not items:
         return items
@@ -54,10 +58,22 @@ def merge_split_paragraphs(items: List[dict]) -> List[dict]:
             and _STARTS_MID_SENTENCE_RE.fullmatch(item["text"])
         ):
             prev["text"] = _join(prev["text"], item["text"])
+            if prev["page"] == item["page"] and prev.get("bbox") and item.get("bbox"):
+                prev["bbox"] = _union_bbox(prev["bbox"], item["bbox"])
             continue
         merged.append(dict(item))
 
     return merged
+
+
+def _union_bbox(a: dict, b: dict) -> dict:
+    """두 bbox를 모두 포함하는 최소 영역을 반환한다."""
+    return {
+        "x0": min(a["x0"], b["x0"]),
+        "y0": min(a["y0"], b["y0"]),
+        "x1": max(a["x1"], b["x1"]),
+        "y1": max(a["y1"], b["y1"]),
+    }
 
 
 def _join(prev_text: str, next_text: str) -> str:

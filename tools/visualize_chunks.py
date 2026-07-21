@@ -84,9 +84,11 @@ def _render_pages(pdf_path: str, page_numbers: set[int], dpi: int) -> dict[int, 
         doc.close()
 
 
+# GenOS 청크에디터(admin-front/src/views/data/vectordb-source/editor/custom-renderer.js
+# getColorByChunkId)의 실제 팔레트 그대로 - 청크 id 순으로 index % 11로 순환 배정한다.
 _CHUNK_COLORS = [
-    "#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4",
-    "#46f0f0", "#f032e6", "#bcf60c", "#fabebe", "#008080",
+    "#28C76F", "#A16EFF", "#FFA97D", "#5D6DFF", "#FF7C87",
+    "#E0C097", "#6EE7B7", "#EA5455", "#FFCE50", "#00CFE8", "#0000001A",
 ]
 
 
@@ -134,6 +136,7 @@ def _view(json_path: str, pdf_override: str | None, out_path: str | None, dpi: i
                     "t": bbox["y0"] * scale,
                     "w": (bbox["x1"] - bbox["x0"]) * scale,
                     "h": (bbox["y1"] - bbox["y0"]) * scale,
+                    "category": entry.get("category"),
                 }
             )
         view_chunks.append(
@@ -188,10 +191,15 @@ def _render_html(pdf_name: str, page_images: dict[int, str], view_chunks: list[d
   #page {{ position: relative; box-shadow: 0 0 8px rgba(0,0,0,.5); height: fit-content; }}
   #page img {{ display: block; max-width: 100%; }}
   .bbox {{
-    position: absolute; border: 2px solid; border-radius: 2px; cursor: pointer;
-    box-sizing: border-box; transition: border-width .1s, filter .1s;
+    position: absolute; border: 2px solid; cursor: pointer;
+    box-sizing: border-box; transition: border-color .1s, z-index .1s;
   }}
-  .bbox.selected {{ border-width: 3px; filter: brightness(1.5); z-index: 2; }}
+  .bbox.selected {{ border-color: #000 !important; border-width: 2px; z-index: 2; }}
+  .bbox-label {{
+    position: absolute; top: -18px; left: -2px; font-size: 10px; font-weight: 600;
+    color: #fff; padding: 1px 5px; border-radius: 2px; white-space: nowrap;
+    pointer-events: none; text-transform: uppercase;
+  }}
   #chunks {{ flex: 2; overflow-y: auto; border-left: 1px solid #444; padding: 12px; min-width: 260px; }}
   #chunks h2 {{ font-size: 14px; color: #aaa; margin: 0 0 8px; }}
   .chunk {{
@@ -241,23 +249,40 @@ function selectChunk(idx) {{
 // bbox는 렌더링한 PNG의 실제 픽셀 좌표인데, <img>는 CSS(max-width:100%)로 화면에 맞게
 // 축소돼 표시되므로, "표시된 크기 / 원본 픽셀 크기" 비율을 곱해줘야 오버레이가 이미지 위에
 // 정확히 겹친다(안 곱하면 페이지 아래로 갈수록 오차가 누적돼 어긋난다).
+//
+// GenOS 청크에디터(custom-renderer.js)와 동일하게: 이 페이지에 걸친 모든 청크의 박스를
+// 항상 같이 그리고(청크마다 고정된 색), 테두리=청크 색 / 배경=그 색의 16% 알파, 카테고리
+// 라벨 칩을 왼쪽 위에 붙인다. 선택된 청크만 테두리가 검정으로 바뀐다(다른 청크를 숨기지
+// 않음 - GenOS도 선택 시 다른 박스를 지우지 않고 검정 테두리로만 구분한다).
+function withAlpha(hex, alphaHex) {{
+  return hex.length === 7 ? hex + alphaHex : hex;
+}}
+
 function drawBoxes(pageNo) {{
   const displayScale = pageImgEl.clientWidth / pageImgEl.naturalWidth;
   pageEl.querySelectorAll('.bbox').forEach(el => el.remove());
   const onPage = chunksOnPage(pageNo);
   for (const chunk of onPage) {{
+    const isSelected = chunk.idx === selectedChunkIdx;
     for (const box of chunk.boxes) {{
       if (box.page !== pageNo) continue;
       const el = document.createElement('div');
-      el.className = 'bbox' + (chunk.idx === selectedChunkIdx ? ' selected' : '');
+      el.className = 'bbox' + (isSelected ? ' selected' : '');
       el.style.left = (box.l * displayScale) + 'px';
       el.style.top = (box.t * displayScale) + 'px';
       el.style.width = (box.w * displayScale) + 'px';
       el.style.height = (box.h * displayScale) + 'px';
       el.style.borderColor = chunk.color;
-      el.style.background = chunk.color + '33';
-      el.title = '청크 #' + (chunk.idx + 1);
-      el.addEventListener('click', () => selectChunk(chunk.idx));
+      el.style.background = withAlpha(chunk.color, '29');
+      el.title = '청크 #' + (chunk.idx + 1) + (box.category ? ` (${{box.category}})` : '');
+      if (box.category) {{
+        const label = document.createElement('span');
+        label.className = 'bbox-label';
+        label.textContent = box.category;
+        label.style.background = chunk.color;
+        el.appendChild(label);
+      }}
+      el.addEventListener('click', (e) => {{ e.stopPropagation(); selectChunk(chunk.idx); }});
       pageEl.appendChild(el);
     }}
   }}

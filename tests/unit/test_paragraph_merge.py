@@ -58,3 +58,28 @@ def test_empty_and_single_item_are_noop():
 
     single = [_item("only", 1)]
     assert merge_split_paragraphs(single) == single
+
+
+def test_merging_same_page_lines_unions_bbox():
+    # 여러 줄로 감싸진 문단은 bbox가 첫 줄 크기로 남으면 안 되고, 합쳐진 줄들의 영역을 다 덮어야 한다.
+    first = _item("this stays as-", 1)
+    first["bbox"] = {"x0": 10, "y0": 100, "x1": 200, "y1": 112}
+    second = _item("sembled into one word", 1)
+    second["bbox"] = {"x0": 10, "y0": 114, "x1": 150, "y1": 126}
+
+    result = merge_split_paragraphs([first, second])
+
+    assert len(result) == 1
+    assert result[0]["bbox"] == {"x0": 10, "y0": 100, "x1": 200, "y1": 126}
+
+
+def test_merging_across_page_keeps_previous_page_bbox():
+    first = _item("this describes the informa-", 1)
+    first["bbox"] = {"x0": 10, "y0": 700, "x1": 200, "y1": 712}
+    second = _item("tion theory basics.", 2)
+    second["bbox"] = {"x0": 10, "y0": 80, "x1": 150, "y1": 92}
+
+    result = merge_split_paragraphs([first, second])
+
+    assert len(result) == 1
+    assert result[0]["bbox"] == first["bbox"]

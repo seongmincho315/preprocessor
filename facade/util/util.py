@@ -4,9 +4,10 @@
 # docling_core.types.doc.labels.DocItemLabel 값 목록
 # https://github.com/docling-project/docling-core/blob/main/docling_core/types/doc/labels.py
 import re
+import struct
 import zipfile
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from pypdf import PdfReader, PdfWriter
 
@@ -223,3 +224,15 @@ def normalize_typography(text: str) -> str:
     for old, new in _TYPOGRAPHY_NORMALIZE_MAP.items():
         text = text.replace(old, new)
     return text
+
+
+def png_size(data: bytes) -> Optional[Tuple[int, int]]:
+    """PNG bytes의 IHDR 청크에서 ``(width, height)`` 픽셀 크기를 읽는다.
+
+    Pillow 등 이미지 라이브러리 없이, PNG 포맷 스펙(시그니처 8바이트 + IHDR 청크)만으로
+    직접 파싱한다. PNG가 아니거나 형식이 예상과 다르면 ``None``.
+    """
+    if len(data) < 24 or data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
+        return None
+    width, height = struct.unpack(">II", data[16:24])
+    return width, height

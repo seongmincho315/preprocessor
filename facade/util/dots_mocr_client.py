@@ -20,12 +20,11 @@ import base64
 import json
 import math
 import re
-import struct
 import urllib.error
 import urllib.request
 from typing import List, Optional, Tuple
 
-from util.util import CATEGORIES
+from util.util import CATEGORIES, png_size as _png_size
 
 # dots.ocr 공식 레포(dots_ocr/utils/prompts.py)의 프롬프트 변형들.
 LAYOUT_ONLY_PROMPT = (
@@ -359,18 +358,6 @@ def _clean_json_array(raw: str) -> str:
         raw = stripped[: last_brace + 1] + "]"
 
     return raw
-
-
-def _png_size(data: bytes) -> Optional[Tuple[int, int]]:
-    """PNG bytes의 IHDR 청크에서 ``(width, height)`` 픽셀 크기를 읽는다.
-
-    Pillow 등 이미지 라이브러리 없이, PNG 포맷 스펙(시그니처 8바이트 + IHDR 청크)만으로
-    직접 파싱한다. PNG가 아니거나 형식이 예상과 다르면 ``None``.
-    """
-    if len(data) < 24 or data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
-        return None
-    width, height = struct.unpack(">II", data[16:24])
-    return width, height
 
 
 def _round_by_factor(number: float, factor: int) -> int:

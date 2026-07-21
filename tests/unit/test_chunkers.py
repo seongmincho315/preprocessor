@@ -43,6 +43,41 @@ class TestSmartChunker:
         assert section1 and all(c["i_page"] == 1 for c in section1)
         assert section2 and all(c["e_page"] == 3 for c in section2)
 
+    def test_bboxes_carry_category(self):
+        items = [
+            {"text": "Intro", "category": "section_header", "page": 1, "bbox": {"x0": 0, "y0": 0, "x1": 10, "y1": 10}},
+            {"text": "body text", "category": "text", "page": 1, "bbox": {"x0": 0, "y0": 20, "x1": 10, "y1": 30}},
+        ]
+        chunks = SmartChunker(chunk_size=0)(items)
+
+        assert len(chunks) == 1
+        categories = {b["category"] for b in chunks[0]["bboxes"]}
+        assert categories == {"section_header", "text"}
+
+    def test_split_pieces_only_carry_bboxes_of_items_actually_in_that_piece(self):
+        # 섹션을 여러 조각으로 쪼갤 때, 각 조각은 자기 텍스트 범위에 들어있는
+        # 아이템의 bbox만 가져야 한다(전체 섹션 bbox를 통째로 물려받으면 안 됨).
+        items = [
+            {"text": "Heading", "category": "section_header", "page": 1, "bbox": {"x0": 0, "y0": 0, "x1": 5, "y1": 5}},
+            {"text": "aaaaaaaaaa", "category": "text", "page": 1, "bbox": {"x0": 0, "y0": 10, "x1": 5, "y1": 15}},
+            {"text": "bbbbbbbbbb", "category": "text", "page": 1, "bbox": {"x0": 0, "y0": 20, "x1": 5, "y1": 25}},
+        ]
+        chunks = SmartChunker(chunk_size=10, chunk_overlap=0)(items)
+
+        assert len(chunks) > 1
+        first_body_bboxes = [b for b in chunks[0]["bboxes"] if b["category"] == "text"]
+        last_body_bboxes = [b for b in chunks[-1]["bboxes"] if b["category"] == "text"]
+        # 첫 조각은 "a" 줄의 bbox만, 마지막 조각은 "b" 줄의 bbox만 가져야지, 둘 다 갖고
+        # 있으면(=섹션 전체를 물려받으면) 회귀다.
+        assert first_body_bboxes != last_body_bboxes
+
+    def test_heading_only_section_is_not_dropped(self):
+        items = [{"text": "Lone heading", "category": "section_header", "page": 1}]
+        chunks = SmartChunker(chunk_size=10, chunk_overlap=2)(items)
+
+        assert len(chunks) == 1
+        assert chunks[0]["text"] == "Lone heading"
+
 
 class TestHybridChunker:
     def test_merge_peers_merges_page_ranges(self):

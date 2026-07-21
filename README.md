@@ -64,3 +64,6 @@ vectors = processor.build_metadata(chunks, file_paths[0])
 `main.py`는 GenOS 서빙용 FastAPI 엔트리포인트로, `logger`/`utils`/`common.*` 등 GenOS 이미지
 안에서만 주입되는 모듈에 의존하므로 로컬에서 직접 실행할 수 없다 — 로컬 확인은 항상 위처럼
 `DocumentProcessor`를 직접 호출하는 방식으로 한다.
+
+
+## 시각화: ./tools/visualize_chunks.py

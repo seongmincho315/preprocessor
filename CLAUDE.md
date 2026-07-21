@@ -85,3 +85,9 @@ print(len(vectors))
 - 이미지 빌드(./build-script 참고)
 - Genos에서 ./facade/preprocessor.py 를 로드: ./main.py참고
 - 사용자가 config.yaml 로드, yaml 세팅에 따라 DocumentProcessor 초기화
+
+
+## 시각화: ./tools/visualize_chunks.py
+  - Genos 의 청크 시각화를 이식해라
+  - 같은 청크면 같은 색깔의 bbox
+  - Category 를 명시해라. text, section-header 등등
