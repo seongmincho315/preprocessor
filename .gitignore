@@ -4,3 +4,5 @@ tests/regression/baselines/
 docs/_build/
 docs/api/_autosummary/
 docs/_autosummary/
+/result/*.json
+/result/*.html
