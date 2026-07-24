@@ -6,3 +6,4 @@ docs/api/_autosummary/
 docs/_autosummary/
 /result/*.json
 /result/*.html
+/result/*/
