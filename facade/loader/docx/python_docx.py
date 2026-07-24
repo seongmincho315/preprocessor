@@ -46,7 +46,7 @@ class Loader(BaseLoader):
         lines = []
         for el in document.element.body.iterchildren():
             self._walk(el, document, lines)
-        yield lines, None
+        yield lines, None, None
 
     @classmethod
     def _walk(cls, el, parent, lines):

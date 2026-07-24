@@ -31,14 +31,14 @@ def test_extracts_block_tags_in_order_and_skips_script_style(html_file):
     pages = list(loader._extract_pages(html_file))
 
     assert len(pages) == 1
-    lines, image = pages[0]
+    lines, image, words = pages[0]
     assert image is None
     assert [text for text, _, _ in lines] == ["Title", "First paragraph.", "Section", "Second paragraph."]
 
 
 def test_heading_tags_get_larger_font_size_than_body(html_file):
     loader = Loader()
-    lines, _ = next(loader._extract_pages(html_file))
+    lines, _, _ = next(loader._extract_pages(html_file))
 
     by_text = {text: font_size for text, _, font_size in lines}
     assert by_text["Title"] > by_text["First paragraph."]

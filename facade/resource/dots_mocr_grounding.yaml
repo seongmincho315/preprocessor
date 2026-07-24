@@ -2,11 +2,11 @@
 # 예: vLLM으로 띄운 서버라면 http://<host>:<port>/v1/chat/completions
 # genonai/doc_parser처럼 GenOS llmops 게이트웨이로 서빙한다면
 # http://llmops-gateway-api-service:8080/rep/serving/<LAYOUT_SERVING_ID>/v1/chat/completions 형태.
-url: ~
+url: http://localhost:26001/v1/chat/completions
 api_key: ~
 # 서버가 model 이름으로 라우팅하면 설정. GenOS 게이트웨이로 서빙하면 "dots-mocr"(genonai/doc_parser
 # 기준), 직접 vLLM으로 HF 리포를 서빙하면 그 리포 id(예: "rednote-hilab/dots.ocr").
-model: ~
+model: dots-mocr
 batch_size: 64
 # batch_size는 아직 미사용 — detr와 동일하게 현재는 페이지당 1장씩 호출한다(단, 이 전략은
 # 감지 1회 + region 개수만큼 grounding OCR 호출이 추가로 나간다).

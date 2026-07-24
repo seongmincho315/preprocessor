@@ -1,5 +1,7 @@
 """PyMuPDF(``fitz``) 기반 PDF 로더. ``ext.pdf`` 가 ``pymupdf`` 일 때 쓰인다."""
 
+from typing import List, Tuple
+
 import fitz  # PyMuPDF
 
 from loader.base_loader import BaseLoader
@@ -9,24 +11,34 @@ class Loader(BaseLoader):
     """PyMuPDF로 PDF의 텍스트 레이어와 페이지 이미지를 페이지 단위로 추출한다."""
 
     def _extract_pages(self, file_path: str):
-        """PDF를 열어 페이지마다 (텍스트 줄 목록, 페이지 이미지) 쌍을 순서대로 낸다.
+        """PDF를 열어 페이지마다 (텍스트 줄 목록, 페이지 이미지, 단어 목록) 튜플을 순서대로 낸다.
 
         Args:
             file_path: 읽을 PDF 파일 경로.
 
         Yields:
-            ``(lines, image)`` 튜플. ``lines`` 는 :meth:`_extract_lines` 의 결과,
-            ``image`` 는 :attr:`needs_image`(레이아웃/OCR 전략이 이미지를 필요로
-            할 때)일 때만 PNG bytes, 아니면 ``None``.
+            ``(lines, image, words)`` 튜플. ``lines`` 는 :meth:`_extract_lines` 의 결과,
+            ``image`` 는 :attr:`needs_image` 일 때만 PNG bytes(아니면 ``None``), ``words`` 는
+            :meth:`_extract_words` 의 결과(``image`` 와 마찬가지로 ``needs_image`` 일 때만).
         """
         doc = fitz.open(file_path)
         try:
             for page in doc:
                 lines = self._extract_lines(page)
                 image = page.get_pixmap(dpi=self.image_dpi).tobytes("png") if self.needs_image else None
-                yield lines, image
+                words = self._extract_words(page) if self.needs_image else None
+                yield lines, image, words
         finally:
             doc.close()
+
+    @staticmethod
+    def _extract_words(page) -> List[Tuple[str, Tuple[float, float, float, float]]]:
+        """페이지의 텍스트를 PDF 원본 단어 단위 ``(text, bbox)`` 목록으로 반환한다.
+
+        PyMuPDF가 실제 glyph 위치를 기반으로 나눈 단어 그대로 쓴다(문자 수 비례 추정이 아님) -
+        tableformer의 cell 매칭(``do_matching``)에 줄 단위보다 훨씬 정확하게 쓰인다.
+        """
+        return [(w[4], (w[0], w[1], w[2], w[3])) for w in page.get_text("words")]
 
     #: span 사이 가로 간격이 (두 span 폰트 크기 평균) * 이 값보다 크면, 원본에서
     #: 띄어져 있던 것으로 보고 공백을 끼워 넣는다.

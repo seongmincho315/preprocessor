@@ -68,7 +68,7 @@ class _ItemsLoader(BaseLoader):
         return None
 
     def _extract_pages(self, file_path):
-        yield ([("ignored", (0, 0, 1, 1), 10.0)], b"fake-image-bytes")
+        yield ([("ignored", (0, 0, 1, 1), 10.0)], b"fake-image-bytes", None)
 
 
 def test_produces_items_layout_bypasses_line_zip_and_stamps_page():

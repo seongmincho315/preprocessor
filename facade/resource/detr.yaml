@@ -1,6 +1,8 @@
 # 로컬 개발용 NodePort. 클러스터 안에서 preprocessor를 띄울 땐
 # http://doc-parser-detr-service.llmops.svc.cluster.local:8080 로 바꿀 것.
-url: http://localhost:30881
+# TEMP: komipo 실서비스 테스트용 — ssh -L 40881:localhost:30881 komipo 포워딩 전제.
+# 끝나면 http://localhost:30881 로 되돌릴 것 (로컬 k8s 클러스터의 자체 detr).
+url: http://localhost:40881
 api_key: ~
 batch_size: 64
 image_dpi: 150

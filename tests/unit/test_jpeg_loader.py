@@ -20,9 +20,10 @@ def test_extract_pages_yields_one_page_with_empty_lines_and_png_bytes(jpeg_file)
     pages = list(loader._extract_pages(jpeg_file))
 
     assert len(pages) == 1
-    lines, image = pages[0]
+    lines, image, words = pages[0]
     assert lines == []
     assert image is not None
+    assert words is None
     with Image.open(io.BytesIO(image)) as img:
         assert img.format == "PNG"
         assert img.size == (20, 10)

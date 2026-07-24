@@ -51,7 +51,7 @@ class Loader(BaseLoader):
         """
         with open(file_path, encoding="utf-8") as f:
             soup = BeautifulSoup(f, "html.parser")
-        yield self._extract_lines(soup), None
+        yield self._extract_lines(soup), None, None
 
     @staticmethod
     def _extract_lines(soup: BeautifulSoup) -> List[Tuple[str, Tuple[float, float, float, float], float]]:

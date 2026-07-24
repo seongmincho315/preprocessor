@@ -79,8 +79,9 @@ def test_extract_pages_converts_via_rhwp_then_reads_with_pymupdf(fake_rhwp, tmp_
     pages = list(loader._extract_pages(str(hwpx_path)))
 
     assert len(pages) == 1
-    lines, image = pages[0]
+    lines, image, words = pages[0]
     assert image is None
+    assert words is None
     assert lines[0][0] == "hello rhwp"
 
 

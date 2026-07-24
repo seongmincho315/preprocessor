@@ -1,5 +1,7 @@
 # 로컬 개발용 NodePort. 클러스터 안에서 preprocessor를 띄울 땐
 # http://doc-parser-ocr-service.llmops.svc.cluster.local:8080 로 바꿀 것.
-url: http://localhost:30880
+# TEMP: komipo 실서비스 테스트용 — ssh -L 40880:localhost:30880 komipo 포워딩 전제.
+# 끝나면 http://localhost:30880 으로 되돌릴 것 (로컬 k8s 클러스터의 자체 paddle-ocr).
+url: http://localhost:40880
 api_key: ~
 timeout: 60

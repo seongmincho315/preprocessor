@@ -38,4 +38,4 @@ class Loader(BaseLoader):
         width = max((len(row) for row in rows), default=0)
         grid = [row + [""] * (width - len(row)) for row in rows]
         lines = [(html, DUMMY_BBOX, "table") for html in grid_to_table_items(grid)]
-        yield lines, None
+        yield lines, None, None

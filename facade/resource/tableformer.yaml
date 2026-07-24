@@ -1,0 +1,7 @@
+# 로컬 개발용 NodePort. 클러스터 안에서 preprocessor를 띄울 땐
+# http://doc-parser-tableformer-service.llmops.svc.cluster.local:8080 로 바꿀 것.
+# TEMP: komipo 실서비스 테스트용 — ssh -L 40882:localhost:30882 komipo 포워딩 전제.
+# 끝나면 http://localhost:30882 로 되돌릴 것 (로컬 k8s 클러스터엔 tableformer가 아직 안 떠있음).
+url: http://localhost:40882
+api_key: ~
+timeout: 60

@@ -32,4 +32,4 @@ class PillowImageLoader(BaseLoader):
         with Image.open(file_path) as img:
             buf = io.BytesIO()
             img.convert("RGB").save(buf, format="PNG")
-            yield [], buf.getvalue()
+            yield [], buf.getvalue(), None

@@ -79,6 +79,12 @@ class BaseLoader(ABC):
           이 메서드는 그걸 그대로 쓴다(자체적으로 텍스트를 추출/오버라이드하는 전략이라
           ``lines`` 와의 위치 매칭이 성립하지 않기 때문).
 
+        ``NEEDS_WORDS = True`` 인 전략(``DetrLayout`` - table_structure 켜졌을 때)에는
+        ``_extract_pages`` 가 낸 원본 PDF 단어 단위 ``words`` 도 같이 넘긴다(tableformer의
+        cell 매칭 정확도용 - 줄 단위보다 훨씬 정밀하다). 이 페이지가 OCR로 대체됐으면
+        (PDF 텍스트 레이어 대신 스캔 이미지에서 다시 읽은 것이라) 원본 단어 bbox가 더 이상
+        유효하지 않으므로 ``words`` 를 넘기지 않는다.
+
         Args:
             file_path: 읽을 파일 경로.
 
@@ -86,10 +92,14 @@ class BaseLoader(ABC):
             ``{text, category, bbox, page}`` 형태의 아이템 목록.
         """
         items = []
-        for page_no, (lines, image) in enumerate(self._extract_pages(file_path), start=1):
+        for page_no, (lines, image, words) in enumerate(self._extract_pages(file_path), start=1):
             if image is not None and self.ocr is not None and self._needs_ocr(lines):
                 lines = self.ocr(image, dpi=self.image_dpi)
-            result = self.layout(lines, image=image)
+                words = None  # PDF 텍스트 레이어 대신 OCR 결과를 쓰므로 원본 단어 bbox는 더 이상 유효하지 않다.
+            if words is not None and getattr(self.layout, "NEEDS_WORDS", False):
+                result = self.layout(lines, image=image, words=words)
+            else:
+                result = self.layout(lines, image=image)
             if getattr(self.layout, "PRODUCES_ITEMS", False):
                 for item in result:
                     items.append({**item, "text": normalize_typography(item.get("text", "")), "page": page_no})
@@ -151,8 +161,16 @@ class BaseLoader(ABC):
         return None
 
     @abstractmethod
-    def _extract_pages(
-        self, file_path: str
-    ) -> Iterable[Tuple[List[Tuple[str, Tuple[float, float, float, float], float]], Optional[bytes]]]:
-        """페이지 단위로 ((text, bbox, font_size) 줄 목록, 페이지 이미지 PNG bytes|None)을 순서대로 반환한다."""
+    def _extract_pages(self, file_path: str) -> Iterable[
+        Tuple[
+            List[Tuple[str, Tuple[float, float, float, float], float]],
+            Optional[bytes],
+            Optional[List[Tuple[str, Tuple[float, float, float, float]]]],
+        ]
+    ]:
+        """페이지 단위로 ((text, bbox, font_size) 줄 목록, 페이지 이미지 PNG bytes|None,
+        (text, bbox) 단어 목록|None)을 순서대로 반환한다. 세 번째 요소(``words``)는 원본 PDF의
+        실제 단어 단위 bbox로, 이를 낼 수 있는 로더(``loader.pdf.pymupdf`` - hwp/hwpx/pptx/ppt
+        등 PDF로 변환 후 이 로더에 위임하는 컨버터도 상속으로 자동 포함)만 채우고, 나머지는
+        ``None``."""
         raise NotImplementedError

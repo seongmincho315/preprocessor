@@ -36,4 +36,4 @@ class Loader(BaseLoader):
             content = f.read()
         paragraphs = _BLANK_LINE_RE.split(content.strip())
         lines = [(p.strip(), DUMMY_BBOX, "text") for p in paragraphs if p.strip()]
-        yield lines, None
+        yield lines, None, None

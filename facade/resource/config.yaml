@@ -10,6 +10,12 @@ layout:
   #   dots_mocr_grounding - bbox/category 감지 후 region마다 grounding OCR로 텍스트 추출
   #   dots_mocr_auto      - dots_mocr와 동일하되, 글리프 깨진 줄만 grounding OCR로 재추출
 
+# 표 구조 인식(현재 detr 전용 - detr가 감지한 "table" region을 tableformer로 다시 보내
+# row/col 구조를 markdown 표로 재구성한다. dots_mocr 계열은 아직 미지원).
+table_structure:
+  type: tableformer # ~ | tableformer  (~ 이면 표 구조 인식 안 하고 "table" 카테고리도 flat text로 남는다)
+  # type이 있으면 resource/<type>.yaml을 읽어 layout 설정에 병합한다
+
 ocr:
   type: paddle
   # config: /app/resource/<이름>.yaml

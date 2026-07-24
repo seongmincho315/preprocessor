@@ -60,3 +60,27 @@ def test_extract_lines_uses_dominant_size_and_restores_spacing(tmp_path):
     text, _, font_size = lines[0]
     assert "hello world" in text
     assert font_size == 14.0
+
+
+def test_extract_words_gives_real_per_word_bboxes_not_whole_line(tmp_path):
+    """tableformer의 cell 매칭용 - 줄 전체가 아니라 PDF 원본 단어 단위 bbox를 내야 한다."""
+    fitz = pytest.importorskip("fitz")
+
+    pdf_path = tmp_path / "sample.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "hello world", fontsize=14)
+    doc.save(str(pdf_path))
+    doc.close()
+
+    opened = fitz.open(str(pdf_path))
+    try:
+        words = Loader._extract_words(opened[0])
+    finally:
+        opened.close()
+
+    assert [w[0] for w in words] == ["hello", "world"]
+    hello_bbox, world_bbox = words[0][1], words[1][1]
+    # 서로 다른(진짜 PDF에서 온) bbox이고, "hello"가 "world"보다 왼쪽에 있어야 한다.
+    assert hello_bbox != world_bbox
+    assert hello_bbox[2] < world_bbox[0]

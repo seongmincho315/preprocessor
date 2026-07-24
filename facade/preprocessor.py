@@ -53,6 +53,17 @@ class DocumentProcessor(BaseProcessor):
                 with open(strategy_path, encoding="utf-8") as f:
                     layout_config.update(yaml.safe_load(f) or {})
 
+        # table_structure.type이 있으면 resource/<type>.yaml을 읽어 layout_config에 병합한다
+        # (현재 detr 전용 보강 기능 - DetrLayout이 layout_config["table_structure"]를 읽는다).
+        table_structure_config = dict(config.get("table_structure") or {})
+        table_structure_type = table_structure_config.get("type")
+        if table_structure_type:
+            strategy_path = CONFIG_PATH.parent / f"{table_structure_type}.yaml"
+            if strategy_path.exists():
+                with open(strategy_path, encoding="utf-8") as f:
+                    table_structure_config.update(yaml.safe_load(f) or {})
+            layout_config["table_structure"] = table_structure_config
+
         # ocr.type이 있으면 resource/<type>.yaml(전략별 세부 설정)을 읽어 병합한다.
         ocr_config = dict(config.get("ocr") or {})
         ocr_type = ocr_config.get("type")

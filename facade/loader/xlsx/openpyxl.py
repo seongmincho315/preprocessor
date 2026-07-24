@@ -42,6 +42,6 @@ class Loader(BaseLoader):
                 grid = unmerge_and_fill(ws)
                 for html in grid_to_table_items(grid):
                     lines.append((html, DUMMY_BBOX, "table"))
-            yield lines, None
+            yield lines, None, None
         finally:
             wb.close()

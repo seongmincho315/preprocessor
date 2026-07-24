@@ -24,7 +24,7 @@ class Loader(BaseLoader):
         """
         reader = PdfReader(file_path)
         for page in reader.pages:
-            yield self._extract_lines(page), None
+            yield self._extract_lines(page), None, None
 
     @staticmethod
     def _extract_lines(page):

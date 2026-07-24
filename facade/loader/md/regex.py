@@ -38,7 +38,7 @@ class Loader(BaseLoader):
         """
         with open(file_path, encoding="utf-8") as f:
             raw_lines = f.read().splitlines()
-        yield self._parse(raw_lines), None
+        yield self._parse(raw_lines), None, None
 
     @classmethod
     def _parse(cls, raw_lines):
