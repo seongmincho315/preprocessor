@@ -152,12 +152,14 @@ class BaseProcessor(ABC):
 
         Args:
             chunks: :meth:`post_enrich` 가 반환한 청크 목록.
-            file_path: 원본 파일 경로(현재 구현에서는 사용하지 않음).
+            file_path: 원본 파일 경로. GenOS 청크에디터가 기대하는 정규화된
+                ``chunk_bboxes``(:mod:`metadata.genos` 참고)를 만들 때 페이지
+                크기(포인트 단위)를 얻기 위해 PDF를 다시 여는 데 쓰인다.
 
         Returns:
             GenOS Weaviate 컬렉션 스키마에 맞는 벡터 dict 목록.
         """
-        return self.metadata_builder(chunks)
+        return self.metadata_builder(chunks, file_path)
 
     def __call__(self, file_path: str) -> List[dict]:
         """전체 파이프라인(파일 분할 -> 로드 -> 전처리/보강 -> 청킹 -> 후처리/보강

@@ -11,7 +11,7 @@ class _DummyProcessor(BaseProcessor):
     max_page_split = 50
 
     def __init__(self):
-        self.metadata_builder = lambda chunks: [{"final": c["text"]} for c in chunks]
+        self.metadata_builder = lambda chunks, file_path=None: [{"final": c["text"]} for c in chunks]
 
     def file_handling(self, file_path):
         return [file_path]

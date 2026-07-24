@@ -1,3 +1,4 @@
+import json
 import re
 
 import pytest
@@ -17,6 +18,7 @@ CHUNKS = [
 EXPECTED_KEYS = {
     "text", "n_chars", "n_words", "n_lines", "i_page", "e_page", "n_page",
     "i_chunk_on_page", "n_chunk_of_page", "i_chunk_on_doc", "n_chunk_of_doc", "reg_date",
+    "chunk_bboxes",
 }
 
 
@@ -55,3 +57,33 @@ def test_text_stats_computed_from_chunk_text():
 def test_reg_date_matches_genos_iso8601_format():
     meta = GenosMetadata()(CHUNKS)
     assert REG_DATE_RE.match(meta[0]["reg_date"])
+
+
+def test_chunk_bboxes_none_without_file_path():
+    chunks = [{**CHUNKS[0], "bboxes": [{"page": 1, "bbox": {"x0": 10, "y0": 10, "x1": 50, "y1": 20}, "category": "text"}]}]
+    meta = GenosMetadata()(chunks)
+    assert meta[0]["chunk_bboxes"] is None
+
+
+def test_build_chunk_bboxes_normalizes_against_page_size():
+    bboxes = [{"page": 1, "bbox": {"x0": 61.2, "y0": 79.2, "x1": 550.8, "y1": 158.4}, "category": "text"}]
+    page_sizes = {1: (612.0, 792.0)}
+    result = json.loads(GenosMetadata._build_chunk_bboxes(bboxes, page_sizes))
+    assert len(result) == 1
+    assert result[0]["page"] == 1
+    assert result[0]["type"] == "text"
+    assert result[0]["bbox"]["coord_origin"] == "TOPLEFT"
+    assert result[0]["bbox"]["l"] == pytest.approx(0.1)
+    assert result[0]["bbox"]["t"] == pytest.approx(0.1)
+    assert result[0]["bbox"]["r"] == pytest.approx(0.9)
+    assert result[0]["bbox"]["b"] == pytest.approx(0.2)
+
+
+def test_build_chunk_bboxes_skips_entries_missing_page_size():
+    bboxes = [{"page": 1, "bbox": {"x0": 0, "y0": 0, "x1": 10, "y1": 10}, "category": "text"}]
+    assert GenosMetadata._build_chunk_bboxes(bboxes, {}) is None
+
+
+def test_build_chunk_bboxes_none_when_chunk_has_no_bboxes():
+    assert GenosMetadata._build_chunk_bboxes(None, {1: (612.0, 792.0)}) is None
+    assert GenosMetadata._build_chunk_bboxes([], {1: (612.0, 792.0)}) is None

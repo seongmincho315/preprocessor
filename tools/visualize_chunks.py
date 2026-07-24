@@ -1,11 +1,16 @@
 """로컬에서 파싱 결과를 GenOS 청크에디터처럼(PDF + bbox 오버레이 + 청크 리스트) 눈으로 보기 위한 도구.
 
+``dump`` 은 실제 파이프라인 전체(``DocumentProcessor.__call__``)를 돌려 GenOS 최종 벡터
+(``chunk_bboxes`` 포함, :mod:`metadata.genos` 참고)를 그대로 저장한다 - doc_parser가
+komipo에서 뽑아준 벡터 JSON과 스키마가 같아서, doc_parser 결과도 (``source_file`` 로
+감싸기만 하면) 이 ``view`` 로 바로 렌더링할 수 있다.
+
 사용법:
-    # 1) PDF를 파싱/청킹해서 청크(JSON)를 떨군다
+    # 1) PDF를 전체 파이프라인으로 돌려서 GenOS 벡터(JSON)를 떨군다
     uv run python tools/visualize_chunks.py dump sample/pdf/long(eng)/Information\\ Theory.pdf
 
     # 2) 그 JSON을 자체완결 HTML 뷰어로 렌더링한다 (원본 PDF 경로는 JSON에 저장돼 있어 자동으로 찾음)
-    uv run python tools/visualize_chunks.py view Information_Theory.chunks.json
+    uv run python tools/visualize_chunks.py view Information_Theory.vectors.json
 
 둘 다 한 번에: `visualize_chunks.py dump <pdf>` 뒤에 바로 `view`를 실행해도 되고,
 `dump`가 끝나면 다음에 실행할 `view` 명령을 안내해준다.
@@ -14,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import base64
 import html
 import json
@@ -27,11 +33,12 @@ if str(FACADE_DIR) not in sys.path:
 
 
 def _dump(pdf_path: str, out_path: str | None) -> Path:
-    """PDF를 파싱/청킹해서 ``{source_file, chunks}`` 형태의 JSON으로 저장한다.
+    """PDF를 전체 파이프라인(``DocumentProcessor.__call__``)으로 돌려 GenOS 벡터
+    (``chunk_bboxes`` 포함) 목록을 ``{source_file, vectors}`` JSON으로 저장한다.
 
     Args:
         pdf_path: 파싱할 PDF 경로.
-        out_path: 저장할 JSON 경로. 생략하면 PDF와 같은 위치에 ``<이름>.chunks.json``.
+        out_path: 저장할 JSON 경로. 생략하면 PDF와 같은 위치에 ``<이름>.vectors.json``.
 
     Returns:
         저장된 JSON 파일 경로.
@@ -40,33 +47,25 @@ def _dump(pdf_path: str, out_path: str | None) -> Path:
 
     pdf_path = str(Path(pdf_path).resolve())
     processor = DocumentProcessor()
+    vectors = asyncio.run(processor(None, pdf_path))
 
-    file_paths = processor.file_handling(pdf_path)
-    items = processor.load(file_paths)
-    items = processor.pre_enrich(processor.preprocess(items))
-    chunks = processor.chunking(items)
-
-    out = Path(out_path) if out_path else Path(pdf_path).with_suffix("").with_suffix(".chunks.json")
+    out = Path(out_path) if out_path else Path(pdf_path).with_suffix("").with_suffix(".vectors.json")
     out.write_text(
-        json.dumps({"source_file": pdf_path, "chunks": chunks}, ensure_ascii=False, indent=2),
+        json.dumps({"source_file": pdf_path, "vectors": vectors}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    print(f"[dump] {len(chunks)}개 청크 -> {out}")
+    print(f"[dump] {len(vectors)}개 벡터 -> {out}")
     print(f"[dump] 뷰어로 보려면: uv run python tools/visualize_chunks.py view {out}")
     return out
 
 
-def _render_pages(pdf_path: str, page_numbers: set[int], dpi: int) -> dict[int, str]:
-    """필요한 페이지만 PNG로 렌더링해서 base64 문자열로 반환한다.
+def _render_pages(pdf_path: str, page_numbers: set[int], dpi: int) -> dict[int, dict]:
+    """필요한 페이지만 PNG로 렌더링해서 ``{page_no: {"png": base64, "width": px, "height": px}}`` 로 반환한다.
 
     Args:
         pdf_path: 원본 PDF 경로.
         page_numbers: 렌더링할 1-indexed 페이지 번호 집합.
-        dpi: 렌더링 해상도. bbox는 PDF point(72dpi) 좌표라, 오버레이할 때
-            ``dpi / 72`` 배율로 스케일한다.
-
-    Returns:
-        ``{page_no: base64_png}``.
+        dpi: 렌더링 해상도.
     """
     import fitz  # PyMuPDF
 
@@ -77,8 +76,12 @@ def _render_pages(pdf_path: str, page_numbers: set[int], dpi: int) -> dict[int, 
             if not (1 <= page_no <= doc.page_count):
                 continue
             page = doc[page_no - 1]
-            png_bytes = page.get_pixmap(dpi=dpi).tobytes("png")
-            images[page_no] = base64.b64encode(png_bytes).decode("ascii")
+            pix = page.get_pixmap(dpi=dpi)
+            images[page_no] = {
+                "png": base64.b64encode(pix.tobytes("png")).decode("ascii"),
+                "width": pix.width,
+                "height": pix.height,
+            }
         return images
     finally:
         doc.close()
@@ -92,11 +95,30 @@ _CHUNK_COLORS = [
 ]
 
 
+def _pixel_box(bbox: dict, img_width: int, img_height: int) -> dict:
+    """``chunk_bboxes`` 의 정규화(0~1) bbox를 렌더링된 PNG의 픽셀 좌표로 변환한다.
+
+    GenOS 프론트엔드(``admin-front/src/store/data/editor.js``)와 동일한 두 원점 처리:
+    ``TOPLEFT`` 는 그대로, ``BOTTOMLEFT`` (docling 기본)는 세로축을 뒤집는다.
+    """
+    l, t, r, b = bbox["l"], bbox["t"], bbox["r"], bbox["b"]
+    if bbox.get("coord_origin") == "BOTTOMLEFT":
+        top = (1 - t) * img_height
+        bottom = (1 - b) * img_height
+    else:  # TOPLEFT
+        top = t * img_height
+        bottom = b * img_height
+    left = l * img_width
+    right = r * img_width
+    return {"l": left, "t": top, "w": right - left, "h": bottom - top}
+
+
 def _view(json_path: str, pdf_override: str | None, out_path: str | None, dpi: int) -> Path:
-    """청크 JSON(+ 원본 PDF)으로 bbox 오버레이가 있는 자체완결 HTML 뷰어를 만든다.
+    """벡터 JSON(+ 원본 PDF)으로 bbox 오버레이가 있는 자체완결 HTML 뷰어를 만든다.
 
     Args:
-        json_path: :func:`_dump` 가 만든 JSON 경로.
+        json_path: :func:`_dump` 가 만든(또는 doc_parser 벡터를 ``{source_file, vectors}``
+            로 감싼) JSON 경로.
         pdf_override: 원본 PDF 경로를 강제로 지정(생략하면 JSON의 ``source_file`` 사용).
         out_path: 저장할 HTML 경로. 생략하면 JSON과 같은 위치에 ``.html``.
         dpi: 페이지 렌더링 해상도.
@@ -105,54 +127,56 @@ def _view(json_path: str, pdf_override: str | None, out_path: str | None, dpi: i
         저장된 HTML 파일 경로.
     """
     data = json.loads(Path(json_path).read_text(encoding="utf-8"))
-    chunks = data["chunks"]
+    vectors = data["vectors"]
     pdf_path = pdf_override or data["source_file"]
     if not Path(pdf_path).exists():
         raise FileNotFoundError(
             f"원본 PDF를 찾을 수 없습니다: {pdf_path} (--pdf 로 위치를 직접 지정하세요)"
         )
 
+    parsed_bboxes = []
+    for v in vectors:
+        raw = v.get("chunk_bboxes")
+        if isinstance(raw, str) and raw:
+            raw = json.loads(raw)
+        parsed_bboxes.append(raw or [])
+
     page_numbers = set()
-    for chunk in chunks:
-        for entry in chunk.get("bboxes", []):
+    for boxes in parsed_bboxes:
+        for entry in boxes:
             page_numbers.add(entry["page"])
-        page_numbers.add(chunk["i_page"])
-        page_numbers.add(chunk["e_page"])
+    for v in vectors:
+        if v.get("i_page"):
+            page_numbers.add(v["i_page"])
+        if v.get("e_page"):
+            page_numbers.add(v["e_page"])
 
     page_images = _render_pages(pdf_path, page_numbers, dpi)
-    scale = dpi / 72  # bbox는 PDF point(72dpi) 좌표라 렌더링 dpi에 맞춰 스케일
 
     view_chunks = []
-    for idx, chunk in enumerate(chunks):
-        boxes = []
-        for entry in chunk.get("bboxes", []):
-            bbox = entry.get("bbox")
-            if not bbox:
+    for idx, (v, boxes) in enumerate(zip(vectors, parsed_bboxes)):
+        rendered_boxes = []
+        for entry in boxes:
+            page_no = entry["page"]
+            page_img = page_images.get(page_no)
+            if not page_img or not entry.get("bbox"):
                 continue
-            boxes.append(
-                {
-                    "page": entry["page"],
-                    "l": bbox["x0"] * scale,
-                    "t": bbox["y0"] * scale,
-                    "w": (bbox["x1"] - bbox["x0"]) * scale,
-                    "h": (bbox["y1"] - bbox["y0"]) * scale,
-                    "category": entry.get("category"),
-                }
-            )
+            px = _pixel_box(entry["bbox"], page_img["width"], page_img["height"])
+            rendered_boxes.append({"page": page_no, **px, "category": entry.get("type")})
         view_chunks.append(
             {
                 "idx": idx,
-                "text": chunk["text"],
-                "i_page": chunk["i_page"],
-                "e_page": chunk["e_page"],
-                "boxes": boxes,
+                "text": v.get("text", ""),
+                "i_page": v.get("i_page"),
+                "e_page": v.get("e_page"),
+                "boxes": rendered_boxes,
                 "color": _CHUNK_COLORS[idx % len(_CHUNK_COLORS)],
             }
         )
 
     out = Path(out_path) if out_path else Path(json_path).with_suffix("").with_suffix(".html")
     out.write_text(
-        _render_html(Path(pdf_path).name, page_images, view_chunks),
+        _render_html(Path(pdf_path).name, {p: img["png"] for p, img in page_images.items()}, view_chunks),
         encoding="utf-8",
     )
     print(f"[view] {len(view_chunks)}개 청크, {len(page_images)}개 페이지 -> {out}")
@@ -336,11 +360,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    dump_p = sub.add_parser("dump", help="PDF를 파싱/청킹해서 JSON으로 저장")
+    dump_p = sub.add_parser("dump", help="PDF를 전체 파이프라인으로 돌려 GenOS 벡터 JSON으로 저장")
     dump_p.add_argument("pdf_path")
     dump_p.add_argument("-o", "--out")
 
-    view_p = sub.add_parser("view", help="청크 JSON을 bbox 오버레이 HTML 뷰어로 렌더링")
+    view_p = sub.add_parser("view", help="벡터 JSON을 bbox 오버레이 HTML 뷰어로 렌더링")
     view_p.add_argument("json_path")
     view_p.add_argument("--pdf", help="원본 PDF 경로 강제 지정 (기본: JSON의 source_file)")
     view_p.add_argument("-o", "--out")
