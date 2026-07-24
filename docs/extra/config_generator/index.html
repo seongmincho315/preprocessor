@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>config.yaml Generator — doc-parser-preprocessor</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, sans-serif;
+    background: #1e1e1e; color: #ddd; display: flex; min-height: 100vh;
+  }
+  #form-pane { flex: 1; min-width: 340px; padding: 24px 32px; overflow-y: auto; }
+  #output-pane {
+    flex: 1; min-width: 340px; padding: 24px 32px; border-left: 1px solid #444;
+    display: flex; flex-direction: column;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .subtitle { color: #999; font-size: 13px; margin: 0 0 24px; }
+  section { margin-bottom: 28px; }
+  section h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .04em;
+    color: #8ab4ff; border-bottom: 1px solid #333; padding-bottom: 6px; margin-bottom: 14px;
+  }
+  .field { margin-bottom: 16px; }
+  .field label.field-label { display: block; font-size: 13px; margin-bottom: 6px; font-weight: 600; }
+  .field .hint { font-size: 12px; color: #888; margin-top: 4px; }
+  select, input[type="text"], input[type="number"], input[type="url"] {
+    width: 100%; background: #2a2a2a; color: #ddd; border: 1px solid #444;
+    border-radius: 4px; padding: 7px 9px; font-size: 13px; font-family: inherit;
+  }
+  .radio-group { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .radio-group label { font-size: 13px; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  pre#yaml-output {
+    flex: 1; background: #141414; border: 1px solid #333; border-radius: 6px;
+    padding: 14px; font-size: 12.5px; overflow: auto; white-space: pre; margin: 0 0 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .actions { display: flex; gap: 10px; }
+  button {
+    background: #333; color: #ddd; border: 1px solid #555; border-radius: 4px;
+    padding: 8px 16px; cursor: pointer; font-size: 13px;
+  }
+  button:hover { background: #3a3a3a; }
+  button.primary { background: #28C76F; border-color: #28C76F; color: #0a1a0f; font-weight: 600; }
+  button.primary:hover { background: #34d97d; }
+  @media (prefers-color-scheme: light) {
+    body { background: #fafafa; color: #222; }
+    #output-pane { border-color: #ddd; }
+    section h2 { border-color: #ddd; color: #2563eb; }
+    select, input[type="text"], input[type="number"], input[type="url"] {
+      background: #fff; color: #222; border-color: #ccc;
+    }
+    pre#yaml-output { background: #f2f2f2; border-color: #ddd; }
+    button { background: #eee; color: #222; border-color: #ccc; }
+    button.primary { color: #06210f; }
+    .hint { color: #777; }
+    .subtitle { color: #666; }
+  }
+</style>
+</head>
+<body>
+
+<div id="form-pane">
+  <h1>config.yaml Generator</h1>
+  <p class="subtitle">항목을 고르면 오른쪽에 config.yaml이 실시간으로 만들어집니다.</p>
+  <div id="form-root"></div>
+</div>
+
+<div id="output-pane">
+  <h1>미리보기</h1>
+  <p class="subtitle">&nbsp;</p>
+  <pre id="yaml-output"></pre>
+  <div class="actions">
+    <button class="primary" id="download-btn">config.yaml 다운로드</button>
+    <button id="copy-btn">클립보드에 복사</button>
+  </div>
+</div>
+
+<script>
+// ── 스키마 정의 ──────────────────────────────────────────────────────────
+// 새 옵션을 추가하려면 이 배열에 필드 하나만 더 넣으면 된다. type별 렌더링/YAML
+// 직렬화는 아래 공용 로직이 다 처리한다.
+//
+// 필드 타입:
+//   "radio"    - options: [{value, label}], default
+//   "dropdown" - options: [{value, label}], default
+//   "int"      - default, min, max
+//   "text"     - default, placeholder
+//   "url"      - default, placeholder
+//
+// path: config.yaml에서 이 값이 들어갈 위치, 점(.)으로 중첩 표현 (예: "layout.type")
+// comment: yaml 라인에 붙일 주석(선택)
+// showIf: (values) => boolean - 다른 필드 값에 따라 조건부로 보이게 하고 싶을 때 사용
+const SCHEMA = [
+  {
+    section: "파일 처리",
+    fields: [
+      {
+        id: "max_page_split", path: "max_page_split", type: "int",
+        label: "max_page_split", default: 50, min: 1,
+        comment: "이 페이지 수를 넘으면 PDF를 분할한다",
+      },
+    ],
+  },
+  {
+    section: "레이아웃 분석 (layout)",
+    fields: [
+      {
+        id: "layout_type", path: "layout.type", type: "dropdown",
+        label: "layout.type", default: "dots_mocr",
+        options: [
+          { value: "rule", label: "rule (규칙 기반, 외부 모델 없음)" },
+          { value: "detr", label: "detr (RT-DETR 서버)" },
+          { value: "dots_mocr", label: "dots_mocr (VLM, bbox/category만)" },
+          { value: "dots_mocr_all", label: "dots_mocr_all (VLM, bbox/category/text 한번에)" },
+          { value: "dots_mocr_grounding", label: "dots_mocr_grounding (VLM + region별 grounding OCR)" },
+          { value: "dots_mocr_auto", label: "dots_mocr_auto (VLM + 글리프 깨진 줄만 재OCR)" },
+        ],
+      },
+    ],
+  },
+  {
+    section: "표 구조 인식 (table_structure)",
+    fields: [
+      {
+        id: "table_structure_type", path: "table_structure.type", type: "dropdown",
+        label: "table_structure.type", default: "tableformer",
+        options: [
+          { value: "~", label: "~ (표 구조 인식 안 함, flat text)" },
+          { value: "tableformer", label: "tableformer (detr 전용)" },
+        ],
+      },
+    ],
+  },
+  {
+    section: "OCR",
+    fields: [
+      {
+        id: "ocr_type", path: "ocr.type", type: "dropdown",
+        label: "ocr.type", default: "paddle",
+        options: [{ value: "paddle", label: "paddle" }],
+      },
+      {
+        id: "ocr_mode", path: "ocr.mode", type: "radio",
+        label: "ocr.mode", default: "auto",
+        options: [
+          { value: "auto", label: "auto (텍스트 없거나 글리프 깨진 페이지만)" },
+          { value: "force", label: "force (전부 OCR)" },
+          { value: "disable", label: "disable (OCR 안 함)" },
+        ],
+      },
+    ],
+  },
+  {
+    section: "청킹 (chunker)",
+    fields: [
+      {
+        id: "chunker_type", path: "chunker.type", type: "dropdown",
+        label: "chunker.type", default: "smart_chunker",
+        options: [
+          { value: "smart_chunker", label: "smart_chunker" },
+          { value: "hierarchical_chunker", label: "hierarchical_chunker" },
+          { value: "hybrid_chunker", label: "hybrid_chunker" },
+        ],
+      },
+      {
+        id: "chunk_size", path: "chunker.chunk_size", type: "int",
+        label: "chunker.chunk_size", default: 1000, min: 0,
+        comment: "0이면 섹션을 통째로(크기 제한 없이) 청크로 만든다",
+      },
+      {
+        id: "over_lap", path: "chunker.over_lap", type: "int",
+        label: "chunker.over_lap", default: 100, min: 0,
+      },
+    ],
+  },
+  {
+    section: "확장자별 로더 (ext)",
+    fields: [
+      {
+        id: "ext_pdf", path: "ext.pdf", type: "dropdown",
+        label: "ext.pdf", default: "pymupdf",
+        options: [{ value: "pymupdf", label: "pymupdf" }, { value: "pypdf", label: "pypdf" }],
+      },
+      {
+        id: "ext_html", path: "ext.html", type: "dropdown",
+        label: "ext.html", default: "bs4",
+        options: [{ value: "bs4", label: "bs4" }, { value: "libreoffice", label: "libreoffice" }],
+      },
+      {
+        id: "ext_hwpx", path: "ext.hwpx", type: "dropdown",
+        label: "ext.hwpx", default: "rhwp",
+        options: [{ value: "rhwp", label: "rhwp" }, { value: "libreoffice", label: "libreoffice" }],
+      },
+    ],
+  },
+  {
+    // 예시: 원격 서비스 엔드포인트처럼 자유 입력이 필요한 항목의 틀.
+    // 실제로 쓰려면 값을 config.yaml의 어느 resource/*.yaml에 넣을지 별도 처리가 필요하다
+    // (지금은 미리보기에 주석으로만 표시).
+    section: "참고용 엔드포인트 (선택)",
+    fields: [
+      {
+        id: "note_endpoint", path: null, type: "url",
+        label: "예: dots_mocr VLM endpoint (resource/dots_mocr.yaml에 직접 반영 필요)",
+        default: "", placeholder: "http://localhost:26001/v1/chat/completions",
+      },
+    ],
+  },
+];
+
+// ── 폼 렌더링 ────────────────────────────────────────────────────────────
+const formRoot = document.getElementById("form-root");
+const state = {};
+
+function renderField(field) {
+  const wrap = document.createElement("div");
+  wrap.className = "field";
+
+  const label = document.createElement("label");
+  label.className = "field-label";
+  label.textContent = field.label;
+  label.htmlFor = field.id;
+  wrap.appendChild(label);
+
+  if (field.type === "dropdown") {
+    const select = document.createElement("select");
+    select.id = field.id;
+    for (const opt of field.options) {
+      const o = document.createElement("option");
+      o.value = opt.value;
+      o.textContent = opt.label;
+      select.appendChild(o);
+    }
+    select.value = field.default;
+    select.addEventListener("change", () => { state[field.id] = select.value; render(); });
+    wrap.appendChild(select);
+  } else if (field.type === "radio") {
+    const group = document.createElement("div");
+    group.className = "radio-group";
+    for (const opt of field.options) {
+      const l = document.createElement("label");
+      const r = document.createElement("input");
+      r.type = "radio";
+      r.name = field.id;
+      r.value = opt.value;
+      r.checked = opt.value === field.default;
+      r.addEventListener("change", () => { state[field.id] = opt.value; render(); });
+      l.appendChild(r);
+      l.appendChild(document.createTextNode(opt.label));
+      group.appendChild(l);
+    }
+    wrap.appendChild(group);
+  } else if (field.type === "int") {
+    const input = document.createElement("input");
+    input.type = "number";
+    input.id = field.id;
+    input.value = field.default;
+    if (field.min !== undefined) input.min = field.min;
+    if (field.max !== undefined) input.max = field.max;
+    input.addEventListener("input", () => { state[field.id] = input.value; render(); });
+    wrap.appendChild(input);
+  } else if (field.type === "text" || field.type === "url") {
+    const input = document.createElement("input");
+    input.type = field.type === "url" ? "url" : "text";
+    input.id = field.id;
+    input.value = field.default || "";
+    if (field.placeholder) input.placeholder = field.placeholder;
+    input.addEventListener("input", () => { state[field.id] = input.value; render(); });
+    wrap.appendChild(input);
+  }
+
+  if (field.comment) {
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = field.comment;
+    wrap.appendChild(hint);
+  }
+
+  state[field.id] = field.default;
+  return wrap;
+}
+
+for (const group of SCHEMA) {
+  const section = document.createElement("section");
+  const h2 = document.createElement("h2");
+  h2.textContent = group.section;
+  section.appendChild(h2);
+  for (const field of group.fields) {
+    section.appendChild(renderField(field));
+  }
+  formRoot.appendChild(section);
+}
+
+// ── YAML 직렬화 ──────────────────────────────────────────────────────────
+// path("a.b.c")를 중첩 객체로 모은 뒤, 아주 단순한 들여쓰기 기반 YAML 문자열로 뽑는다.
+// (형식이 고정돼 있어 라이브러리 없이 손으로 직렬화 - 실제 config.yaml처럼 주석도 붙인다)
+function buildTree() {
+  const tree = {};
+  for (const group of SCHEMA) {
+    for (const field of group.fields) {
+      if (!field.path) continue; // path 없는 필드(참고용)는 config.yaml에 안 들어감
+      const parts = field.path.split(".");
+      let node = tree;
+      for (let i = 0; i < parts.length - 1; i++) {
+        node[parts[i]] = node[parts[i]] || {};
+        node = node[parts[i]];
+      }
+      let value = state[field.id];
+      if (field.type === "int") value = Number(value);
+      node[parts[parts.length - 1]] = { value, comment: field.comment };
+    }
+  }
+  return tree;
+}
+
+function serialize(node, indent) {
+  const pad = "  ".repeat(indent);
+  let out = "";
+  for (const key of Object.keys(node)) {
+    const entry = node[key];
+    if (entry && typeof entry === "object" && "value" in entry) {
+      const comment = entry.comment ? `  # ${entry.comment}` : "";
+      out += `${pad}${key}: ${entry.value}${comment}\n`;
+    } else {
+      out += `${pad}${key}:\n`;
+      out += serialize(entry, indent + 1);
+    }
+  }
+  return out;
+}
+
+function render() {
+  const tree = buildTree();
+  const yaml = serialize(tree, 0);
+  document.getElementById("yaml-output").textContent = yaml;
+}
+
+document.getElementById("download-btn").addEventListener("click", () => {
+  const blob = new Blob([document.getElementById("yaml-output").textContent], { type: "text/yaml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "config.yaml";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("copy-btn").addEventListener("click", async () => {
+  await navigator.clipboard.writeText(document.getElementById("yaml-output").textContent);
+  const btn = document.getElementById("copy-btn");
+  const original = btn.textContent;
+  btn.textContent = "복사됨!";
+  setTimeout(() => { btn.textContent = original; }, 1200);
+});
+
+render();
+</script>
+</body>
+</html>

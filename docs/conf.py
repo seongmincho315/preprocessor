@@ -33,3 +33,8 @@ html_static_path = ["_static"]
 html_title = "doc-parser-preprocessor"
 html_logo = "_static/logo.png"
 html_favicon = "_static/logo.png"
+
+# docs/extra/ 밑의 파일/디렉터리를 Sphinx 처리 없이 빌드 결과물 루트로 그대로 복사한다.
+# config_generator/index.html이 여기 있어서 배포되면
+# https://<user>.github.io/<repo>/config_generator/ 로 그대로 서빙된다.
+html_extra_path = ["extra"]
