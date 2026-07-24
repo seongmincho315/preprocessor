@@ -56,6 +56,11 @@ class BaseProcessor(ABC):
 
         각 파일은 확장자(매직 바이트로 판별)에 맞는 로더로 읽으며, 로더는
         내부적으로 레이아웃 분석(카테고리 부여)과 필요시 OCR을 함께 수행한다.
+        ``file_handling``(:func:`~util.util.file_split`)이 큰 PDF를 여러 파일로
+        잘랐다면, 각 분할 파일의 페이지 번호는 1부터 다시 시작하므로 원본 문서
+        기준 페이지 번호가 되도록 ``i * max_page_split`` 만큼 오프셋을 더한다
+        (더하지 않으면 두 번째 이후 분할 파일의 아이템이 첫 파일과 같은 페이지
+        번호를 갖게 되어, 서로 다른 원본 페이지의 내용이 같은 페이지로 겹쳐 보인다).
 
         Args:
             file_paths: :meth:`file_handling` 이 반환한 파일 경로 목록.
@@ -64,9 +69,13 @@ class BaseProcessor(ABC):
             ``{text, category, bbox, page}`` 형태의 아이템 목록.
         """
         items = []
-        for file_path in file_paths:
+        for i, file_path in enumerate(file_paths):
             ext = get_ext(file_path=file_path)
-            items.extend(self.loader[ext](file_path))
+            page_offset = i * self.max_page_split
+            for item in self.loader[ext](file_path):
+                if page_offset:
+                    item["page"] += page_offset
+                items.append(item)
         return items
 
     def preprocess(self, items: List[dict]) -> List[dict]:
