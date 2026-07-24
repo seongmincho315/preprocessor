@@ -105,6 +105,22 @@ const SCHEMA = [
     ],
   },
   {
+    section: "리턴 레벨",
+    fields: [
+      {
+        id: "return_level", path: "return_level", type: "radio",
+        label: "return_level", default: "build_metadata",
+        options: [
+          { value: "loader", label: "loader (로드+전처리까지, 청킹은 호출자가)" },
+          { value: "chunker", label: "chunker (청킹까지, 후처리는 호출자가)" },
+          { value: "postprocess", label: "postprocess (후처리까지, 메타데이터 변환은 호출자가)" },
+          { value: "build_metadata", label: "build_metadata (끝까지, 기본값)" },
+        ],
+        comment: "고객사별로 우리가 어디까지 처리하고 나머지는 넘겨받을지",
+      },
+    ],
+  },
+  {
     section: "레이아웃 분석 (layout)",
     fields: [
       {

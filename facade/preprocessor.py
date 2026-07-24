@@ -43,6 +43,10 @@ class DocumentProcessor(BaseProcessor):
             config = yaml.safe_load(f)
 
         self.max_page_split = config["max_page_split"]
+        # 고객사별로 우리가 어디까지 처리하고 나머지는 넘겨받을지가 다를 수 있어, 배포
+        # 단위(config.yaml)로 기본값을 고정할 수 있게 한다. 요청이 return_level을 직접
+        # 주면 그게 이 기본값을 덮어쓴다(__call__ 참고).
+        self.default_return_level = config.get("return_level", "build_metadata")
 
         # layout.type이 rule이 아니면 resource/<type>.yaml(전략별 세부 설정)을 읽어 병합한다.
         layout_config = dict(config.get("layout") or {})
@@ -101,10 +105,16 @@ class DocumentProcessor(BaseProcessor):
         Args:
             request: GenOS ``/run`` 요청 객체(현재 구현에서는 사용하지 않음).
             file_path: 처리할 원본 파일 경로.
-            **params: 확장 파라미터(현재 구현에서는 사용하지 않음).
+            **params: 확장 파라미터. ``return_level``\\ (고객사별로 어디까지 우리가
+                처리하고 반환할지 - :data:`~base_processor.BaseProcessor.RETURN_LEVELS`
+                참고)만 인식하고, 나머지는 아직 쓰지 않는다. 생략하면
+                ``config.yaml`` 의 ``return_level``\\ (``self.default_return_level``,
+                기본 ``"build_metadata"``)을 쓴다.
 
         Returns:
-            :meth:`~base_processor.BaseProcessor.build_metadata` 가 반환한 벡터 dict 목록.
+            ``return_level`` 에 대응하는 단계의 산출물(기본은
+            :meth:`~base_processor.BaseProcessor.build_metadata` 가 반환한 벡터 dict 목록).
         """
         # file_handling -> load -> preprocess -> pre_enrich -> chunking -> postprocess -> post_enrich -> build_metadata
-        return super().__call__(file_path)
+        return_level = params.get("return_level", self.default_return_level)
+        return super().__call__(file_path, return_level=return_level)

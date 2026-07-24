@@ -161,7 +161,15 @@ class BaseProcessor(ABC):
         """
         return self.metadata_builder(chunks, file_path)
 
-    def __call__(self, file_path: str) -> List[dict]:
+    #: :meth:`__call__` 의 ``return_level`` 로 쓸 수 있는 값(순서대로 파이프라인 진행 순).
+    #: 고객사별로 우리가 어디까지 처리하고 나머지는 넘겨받을지가 달라서(예: "청킹은 우리가
+    #: 할 테니 로딩만 해달라", "후처리는 우리가 할 테니 청킹까지만 해달라") 만든 옵션이다.
+    #: 레벨마다 리턴 타입이 다르다(로더는 ``{text,category,bbox,page}`` 아이템 목록, 청커는
+    #: ``{text,i_page,e_page,bboxes}`` 청크 목록, ``build_metadata`` 는 GenOS 벡터 dict 목록) -
+    #: 그냥 뒷단계를 생략하는 게 아니라 그 시점 그대로의 자연스러운 산출물을 반환한다.
+    RETURN_LEVELS = ("loader", "chunker", "postprocess", "build_metadata")
+
+    def __call__(self, file_path: str, return_level: str = "build_metadata") -> List[dict]:
         """전체 파이프라인(파일 분할 -> 로드 -> 전처리/보강 -> 청킹 -> 후처리/보강
         -> 메타데이터)을 동기적으로 실행한다.
 
@@ -171,18 +179,43 @@ class BaseProcessor(ABC):
 
         Args:
             file_path: 처리할 원본 파일 경로.
+            return_level: 어디까지 처리하고 반환할지(:data:`RETURN_LEVELS` 중 하나).
+
+                - ``"loader"``: 로드 + 룰 기반 전처리/보강까지만 하고 아이템 목록을 반환한다
+                  (청킹부터는 호출자가 직접 한다).
+                - ``"chunker"``: 청킹까지만 하고 청크 목록을 반환한다(후처리/보강은 호출자가
+                  직접 한다).
+                - ``"postprocess"``: 후처리/보강까지만 하고 청크 목록을 반환한다(메타데이터
+                  변환은 호출자가 직접 한다).
+                - ``"build_metadata"``\\ (기본값): 끝까지 실행해 GenOS 벡터 dict 목록을
+                  반환한다(기존 동작과 동일).
 
         Returns:
-            :meth:`build_metadata` 가 반환한 벡터 dict 목록.
+            ``return_level`` 에 대응하는 단계의 산출물.
+
+        Raises:
+            ValueError: ``return_level`` 이 :data:`RETURN_LEVELS` 에 없는 값일 때.
         """
+        if return_level not in self.RETURN_LEVELS:
+            raise ValueError(f"알 수 없는 return_level '{return_level}' (허용값: {self.RETURN_LEVELS})")
+
         file_paths = self.file_handling(file_path)
         try:
             items = self.load(file_paths)
             items = self.preprocess(items)
             items = self.pre_enrich(items)
+            if return_level == "loader":
+                return items
+
             chunks = self.chunking(items)
+            if return_level == "chunker":
+                return chunks
+
             chunks = self.postprocess(chunks)
             chunks = self.post_enrich(chunks)
+            if return_level == "postprocess":
+                return chunks
+
             return self.build_metadata(chunks, file_path)
         finally:
             self._cleanup_split_files(file_path, file_paths)

@@ -1,5 +1,9 @@
 max_page_split: 50
 
+# 고객사별로 우리가 어디까지 처리하고 나머지는 넘겨받을지 (예: "청킹은 우리가 할 테니
+# 로딩만 해달라" -> loader). 요청이 return_level을 직접 주면 이 기본값을 덮어쓴다.
+return_level: build_metadata # loader | chunker | postprocess | build_metadata
+
 # pdf 레이아웃 분석
 layout:
   type: dots_mocr # rule | detr | dots_mocr | dots_mocr_all | dots_mocr_grounding | dots_mocr_auto

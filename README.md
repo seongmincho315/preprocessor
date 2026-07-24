@@ -69,7 +69,6 @@ vectors = processor.build_metadata(chunks, file_paths[0])
 ## 시각화: ./tools/visualize_chunks.py
 
 ## TODO
-- 리턴 레벨: 각 파이프라인 별로 리턴할 수 있게
 - 개행/띄어쓰기: 나는 이거 형태소 분석기 토크나이져 타도 안고쳐질거같은데;;
 - 기존 전처리기는 성능 측정 어떻게 하는거지
 - docling은 성능 측정 어떻게 하는거지
